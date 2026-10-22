@@ -1,0 +1,2 @@
+integrations/terminal-controls/cxt-l2-agent-action text eol=lf
+tests/tmux-guarded-switch.sh text eol=lf

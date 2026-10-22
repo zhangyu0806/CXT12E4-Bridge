@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:-}"
+pane="${2:-${TMUX_PANE:-}}"
+command_name="${3:-}"
+command_name="${command_name##*/}"
+
+if [[ -z "$pane" ]]; then
+  tmux display-message 'CXT12E4：找不到当前 tmux pane'
+  exit 1
+fi
+
+case "$action:$command_name" in
+  stash:opencode|stash:claude|stash:claude.exe|stash:grok)
+    # Claude Code and Grok use Ctrl+S natively. OpenCode is configured with
+    # prompt_stash=ctrl+s so all supported agents share one physical action.
+    tmux send-keys -t "$pane" C-s
+    ;;
+  stash:*)
+    tmux display-message "L2 Agent键：当前程序 $command_name 不支持 $action"
+    ;;
+  *)
+    tmux display-message "L2 Agent键：未知动作 $action"
+    exit 2
+    ;;
+esac

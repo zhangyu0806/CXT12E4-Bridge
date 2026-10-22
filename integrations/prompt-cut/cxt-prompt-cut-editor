@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root="${XDG_CACHE_HOME:-$HOME/.cache}/cxt12e4/prompt-cut"
+pane_key="${TMUX_PANE:-unknown}"
+pane_key="${pane_key#%}"
+arm_file="$state_root/$pane_key"
+
+find_edit_file() {
+  local argument
+  for argument in "$@"; do
+    if [[ -f "$argument" ]]; then
+      printf '%s\n' "$argument"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if [[ -f "$arm_file" ]]; then
+  # The trigger is deliberately short-lived. A stale marker must never turn a
+  # later, ordinary external-editor request into a destructive cut operation.
+  now_epoch="$(date +%s)"
+  arm_epoch="$(cat "$arm_file" 2>/dev/null || printf '0')"
+  rm -f -- "$arm_file"
+
+  if (( now_epoch - arm_epoch <= 3 )); then
+    edit_file="$(find_edit_file "$@" || true)"
+    if [[ -n "$edit_file" ]]; then
+      # clip.exe writes to the Windows system clipboard. Emptying the editor
+      # file makes OpenCode/Claude Code reload an empty prompt on return.
+      clip.exe < "$edit_file"
+      : > "$edit_file"
+      exit 0
+    fi
+  fi
+fi
+
+exec /usr/bin/vim "$@"

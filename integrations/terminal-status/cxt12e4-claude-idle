@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -u
+
+# Claude Code does not emit Stop when the user interrupts a response. Its
+# later idle_prompt notification is the supported signal that the prompt is
+# idle again. Grok also reads Claude-compatible hook configuration but uses
+# camelCase input keys, so only accept Claude's documented snake_case payload.
+payload="$(cat)"
+if ! grep -Eq '"hook_event_name"[[:space:]]*:[[:space:]]*"Notification"' <<<"$payload"; then
+    exit 0
+fi
+if ! grep -Eq '"notification_type"[[:space:]]*:[[:space:]]*"idle_prompt"' <<<"$payload"; then
+    exit 0
+fi
+
+exec "$HOME/.local/bin/cxt12e4-agent-status" idle-if-active

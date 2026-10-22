@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically verify WSL DrvFS mounts
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=30s
+AccuracySec=5s
+Unit=wsl-drvfs-watchdog.service
+
+[Install]
+WantedBy=timers.target

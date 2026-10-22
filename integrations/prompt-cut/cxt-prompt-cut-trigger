@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+pane="${1:-${TMUX_PANE:-}}"
+command_name="${2:-}"
+command_name="${command_name##*/}"
+
+if [[ -z "$pane" ]]; then
+  tmux display-message 'CXT12E4：找不到当前 tmux pane'
+  exit 1
+fi
+
+state_root="${XDG_CACHE_HOME:-$HOME/.cache}/cxt12e4/prompt-cut"
+pane_key="${pane#%}"
+mkdir -p -- "$state_root"
+printf '%s\n' "$(date +%s)" > "$state_root/$pane_key"
+
+case "$command_name" in
+  opencode)
+    # OpenCode: leader (Ctrl+X), then editor_open (E).
+    tmux send-keys -t "$pane" C-x e
+    ;;
+  claude|claude.exe)
+    # Claude Code: chat:externalEditor.
+    tmux send-keys -t "$pane" C-g
+    ;;
+  *)
+    rm -f -- "$state_root/$pane_key"
+    tmux display-message '键9只在 OpenCode / Claude Code 输入框中剪切整段文字'
+    ;;
+esac

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -u
+
+state="${1:-idle}"
+pane="${2:-${TMUX_PANE:-}}"
+# The WSL installer renders this shell-quoted absolute Windows status directory.
+status_root=__CXT12E4_STATUS_ROOT_SHELL__
+
+if [[ ! "$pane" =~ ^%[0-9]+$ ]]; then
+    exit 0
+fi
+
+if [[ "$status_root" != /* ]]; then
+    printf 'Install the CXT12E4 WSL integrations before running this reporter.\n' >&2
+    exit 2
+fi
+
+file="$status_root/pane-${pane#%}.state"
+lock_root="${XDG_RUNTIME_DIR:-/tmp}/cxt12e4-terminal-status-locks"
+mkdir -p -- "$lock_root"
+exec 9>"$lock_root/pane-${pane#%}.lock"
+flock -x 9
+
+if [[ "$state" == "delete" || "$state" == "off" ]]; then
+    rm -f -- "$file"
+    exit 0
+fi
+
+if [[ "$state" == "idle-if-active" ]]; then
+    current_state="$(cut -f3 -- "$file" 2>/dev/null || true)"
+    case "$current_state" in
+        thinking|busy|running|waiting|permission) state="idle" ;;
+        *) exit 0 ;;
+    esac
+fi
+
+if [[ "$state" == "thinking-if-waiting" ]]; then
+    current_state="$(cut -f3 -- "$file" 2>/dev/null || true)"
+    case "$current_state" in
+        waiting|permission) state="thinking" ;;
+        *) exit 0 ;;
+    esac
+fi
+
+metadata="$(tmux display-message -p -t "$pane" \
+    $'#{session_name}\t#{session_id}\t#{session_created}\t#{pid}' 2>/dev/null || true)"
+IFS=$'\t' read -r session session_id session_created server_pid extra <<<"$metadata"
+if [[ -n "${extra:-}" || -z "$session" || ! "$session_id" =~ ^\$[0-9]+$ ||
+      ! "$session_created" =~ ^[0-9]+$ || ! "$server_pid" =~ ^[0-9]+$ ]]; then
+    rm -f -- "$file"
+    exit 0
+fi
+
+session="${session//$'\t'/ }"
+session="${session//$'\n'/ }"
+mkdir -p -- "$status_root"
+temporary="$file.$$.tmp"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$session" "$pane" "$state" "$(date +%s)" \
+    "$session_id" "$session_created" "$server_pid" "$(date +%s%N)" >"$temporary"
+mv -f -- "$temporary" "$file"

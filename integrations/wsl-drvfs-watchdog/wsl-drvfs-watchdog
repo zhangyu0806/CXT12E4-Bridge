@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+mount_root="${WSL_DRVFS_MOUNT_ROOT:-/mnt}"
+probe_root="${WSL_DRVFS_PROBE_ROOT:-/run/wsl-drvfs-watchdog}"
+drive_list="${WSL_DRVFS_DRIVES:-c d}"
+mount_uid="${WSL_DRVFS_UID:-1000}"
+mount_gid="${WSL_DRVFS_GID:-1000}"
+
+log() {
+  printf 'wsl-drvfs-watchdog: %s\n' "$*"
+}
+
+is_healthy_drvfs() {
+  local target="$1"
+  local fs_type
+
+  mountpoint -q -- "$target" || return 1
+  fs_type="$(findmnt -n -o FSTYPE -T "$target" 2>/dev/null || true)"
+  case "$fs_type" in
+    9p|drvfs|virtiofs) ;;
+    *) return 1 ;;
+  esac
+
+  timeout 3 stat -- "$target/." >/dev/null 2>&1
+}
+
+discard_probe() {
+  local probe="$1"
+
+  if mountpoint -q -- "$probe"; then
+    timeout 10 umount -- "$probe" >/dev/null 2>&1 || true
+  fi
+}
+
+recover_drive() {
+  local letter="${1,,}"
+  local windows_drive="${letter^^}:"
+  local target="$mount_root/$letter"
+  local probe="$probe_root/$letter"
+
+  if is_healthy_drvfs "$target"; then
+    return 0
+  fi
+
+  log "$target is unavailable; preparing a fresh $windows_drive DrvFS channel"
+  mkdir -p -- "$target" "$probe"
+  discard_probe "$probe"
+
+  if ! timeout 12 mount -t drvfs -o "uid=$mount_uid,gid=$mount_gid,noatime" "$windows_drive" "$probe"; then
+    log "fresh $windows_drive probe mount failed; leaving the existing mount unchanged"
+    return 1
+  fi
+
+  if ! is_healthy_drvfs "$probe"; then
+    log "fresh $windows_drive probe is unhealthy; leaving the existing mount unchanged"
+    discard_probe "$probe"
+    return 1
+  fi
+
+  # Re-check after creating the probe so a concurrent recovery does not replace
+  # a mount that has already become healthy.
+  if is_healthy_drvfs "$target"; then
+    discard_probe "$probe"
+    return 0
+  fi
+
+  if mountpoint -q -- "$target" && ! timeout 10 umount -- "$target"; then
+    log "$target is busy; refusing to force or lazily detach it"
+    discard_probe "$probe"
+    return 1
+  fi
+
+  if ! mount --move "$probe" "$target"; then
+    log "moving the fresh mount to $target failed; attempting a direct safe mount"
+    discard_probe "$probe"
+    if ! timeout 12 mount -t drvfs -o "uid=$mount_uid,gid=$mount_gid,noatime" "$windows_drive" "$target"; then
+      log "direct $windows_drive mount failed"
+      return 1
+    fi
+  fi
+
+  if ! is_healthy_drvfs "$target"; then
+    log "$target still fails validation after recovery"
+    return 1
+  fi
+
+  log "$target recovered without restarting WSL"
+}
+
+mkdir -p -- "$probe_root"
+read -r -a drives <<< "$drive_list"
+result=0
+for drive in "${drives[@]}"; do
+  recover_drive "$drive" || result=1
+done
+
+exit "$result"

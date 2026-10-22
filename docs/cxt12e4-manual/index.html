@@ -1,0 +1,1627 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="configuration-revision" content="20261020-codex-tab">
+  <title>CXT12E4 + Xbox · Windows 八层功能手册</title>
+  <style>
+    :root {
+      --accent: #0078c8;
+      --accent-rgb: 0, 120, 200;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #dfe4ec;
+      --panel: rgba(255, 255, 255, .92);
+      --soft: #f4f6fa;
+      --danger: #d92d20;
+      --shadow: 0 18px 50px rgba(25, 38, 65, .10);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(var(--accent-rgb), .13), transparent 28rem),
+        linear-gradient(180deg, #f7f9fc 0, #eef2f7 100%);
+      font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+      line-height: 1.55;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { width: min(1440px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 56px; }
+    .topbar {
+      position: sticky; top: 12px; z-index: 30;
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 14px; border: 1px solid rgba(255,255,255,.75);
+      border-radius: 18px; background: rgba(255,255,255,.80);
+      box-shadow: 0 10px 30px rgba(30, 44, 70, .08);
+      backdrop-filter: blur(18px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: max-content; }
+    .brand-mark {
+      display: grid; place-items: center; width: 38px; aspect-ratio: 1;
+      border-radius: 12px; color: white; font-weight: 800; letter-spacing: -.04em;
+      background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent), #101828 34%));
+      box-shadow: 0 8px 20px rgba(var(--accent-rgb), .25);
+    }
+    .brand strong { display: block; font-size: 14px; line-height: 1.2; }
+    .brand small { display: block; color: var(--muted); margin-top: 2px; font-size: 11px; }
+    .layer-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin; flex: 1; }
+    .layer-tab {
+      flex: 0 0 auto; min-width: 45px; padding: 8px 11px; border: 1px solid transparent;
+      border-radius: 11px; background: transparent; color: #475467; cursor: pointer; font-weight: 700;
+    }
+    .layer-tab:hover { background: #f2f4f7; }
+    .layer-tab.active {
+      color: #fff; background: var(--accent); border-color: rgba(0,0,0,.05);
+      box-shadow: 0 6px 18px rgba(var(--accent-rgb), .24);
+    }
+    .top-actions { display: flex; gap: 7px; }
+    .icon-button {
+      display: grid; place-items: center; width: 39px; height: 39px;
+      border: 1px solid var(--line); border-radius: 11px; background: #fff; cursor: pointer;
+    }
+    .icon-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .hero {
+      display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(310px, .75fr); gap: 24px;
+      align-items: stretch; padding: 46px 8px 28px;
+    }
+    .eyebrow { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 12px; font-size: clamp(34px, 5vw, 64px); line-height: 1.03; letter-spacing: -.045em; }
+    .lead { margin: 0; max-width: 760px; color: #526078; font-size: clamp(16px, 2vw, 20px); }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .tag { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.72); color: #475467; font-size: 12px; font-weight: 700; }
+
+    .quick-card, .panel {
+      border: 1px solid rgba(255,255,255,.88); border-radius: 22px;
+      background: var(--panel); box-shadow: var(--shadow);
+    }
+    .quick-card { padding: 20px; }
+    .quick-card h2 { margin: 0 0 13px; font-size: 16px; }
+    .chord { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .chord span { padding: 8px 5px; text-align: center; border-radius: 9px; background: var(--soft); font-size: 12px; font-weight: 800; }
+    .chord b { color: var(--accent); }
+    .quick-note { margin: 13px 0 0; color: var(--muted); font-size: 12px; }
+
+    .search-wrap { position: relative; margin: 4px 0 26px; }
+    .search-wrap input {
+      width: 100%; padding: 15px 46px 15px 48px; border: 1px solid var(--line); border-radius: 15px;
+      background: #fff; color: var(--ink); outline: none; box-shadow: 0 8px 22px rgba(30,44,70,.06);
+    }
+    .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .10); }
+    .search-icon { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); color: #98a2b3; }
+    .search-hint { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); padding: 3px 7px; border: 1px solid var(--line); border-radius: 6px; color: #98a2b3; background: var(--soft); font-size: 11px; }
+    .search-results { display: none; margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: var(--shadow); }
+    .search-results.show { display: grid; gap: 5px; }
+    .result {
+      display: grid; grid-template-columns: 74px 68px 1fr; gap: 9px; align-items: center;
+      padding: 9px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer;
+    }
+    .result:hover { background: var(--soft); }
+    .result-layer { font-weight: 800; color: var(--accent); }
+    .result-position { color: var(--muted); font-size: 12px; }
+    .result-function { font-weight: 650; }
+
+    .layer-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 4px 16px; }
+    .layer-heading h2 { margin: 0; font-size: clamp(26px, 3.2vw, 40px); letter-spacing: -.035em; }
+    .layer-heading p { margin: 5px 0 0; color: var(--muted); }
+    .indicator-pill { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; white-space: nowrap; font-size: 12px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .14); }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.38fr) minmax(340px, .62fr); gap: 18px; align-items: start; }
+    .panel { padding: 18px; }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
+    .panel-title h3 { margin: 0; font-size: 15px; }
+    .panel-title small { color: var(--muted); }
+
+    .keyboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .key {
+      position: relative; min-height: 122px; padding: 15px 13px 12px; overflow: hidden;
+      border: 1px solid #dbe1ea; border-radius: 15px; background: linear-gradient(145deg, #fff, #f5f7fa);
+      box-shadow: inset 0 -3px 0 #e6eaf0, 0 5px 12px rgba(28,39,60,.05);
+    }
+    .key::after { content: ""; position: absolute; inset: auto -20% -70% 35%; height: 100%; background: radial-gradient(circle, rgba(var(--accent-rgb),.12), transparent 67%); pointer-events: none; }
+    .key.special { border-color: rgba(var(--accent-rgb), .38); background: linear-gradient(145deg, #fff, rgba(var(--accent-rgb), .08)); }
+    .key.danger { border-color: rgba(217,45,32,.30); }
+    .key-number { display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; color: #fff; background: #344054; font-size: 11px; font-weight: 850; }
+    .key.special .key-number { background: var(--accent); }
+    .key.danger .key-number { background: var(--danger); }
+    .key-function { position: relative; z-index: 1; display: block; margin-top: 12px; font-size: 15px; font-weight: 800; line-height: 1.25; }
+    .key-detail { position: relative; z-index: 1; display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .task-hold { position: relative; z-index: 1; display: inline-block; margin-top: 8px; padding: 4px 7px; border: 1px solid rgba(0,120,200,.24); border-radius: 999px; background: rgba(0,120,200,.08); color: #0069ad; font-size: 10px; font-weight: 750; line-height: 1.2; }
+
+    .encoder-list { display: grid; gap: 10px; }
+    .encoder { padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg,#fff,#f7f8fb); }
+    .encoder-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .encoder-name { font-weight: 850; }
+    .encoder-place { color: var(--muted); font-size: 11px; }
+    .encoder-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .encoder-action { min-width: 0; padding: 8px 5px; border-radius: 9px; background: var(--soft); text-align: center; }
+    .encoder-action b { display: block; color: var(--accent); font-size: 11px; }
+    .encoder-action span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; }
+
+    .notes { display: grid; gap: 9px; margin-top: 18px; }
+    .note { display: flex; gap: 10px; padding: 11px 13px; border-radius: 12px; background: rgba(var(--accent-rgb),.075); color: #475467; font-size: 12px; }
+    .note strong { color: var(--ink); }
+    .note-icon { color: var(--accent); font-weight: 900; }
+    .layer-help { margin-top: 14px; background: rgba(var(--accent-rgb),.035); }
+    .layer-help summary { padding: 11px 13px; color: #475467; font-size: 12px; }
+    .layer-help .notes { margin: 0; padding: 0 10px 10px; }
+
+    .section { margin-top: 24px; }
+    .section-header { margin: 0 4px 13px; }
+    .section-header h2 { margin: 0; font-size: 24px; letter-spacing: -.025em; }
+    .section-header p { margin: 5px 0 0; color: var(--muted); }
+    .status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .status { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .status-light { width: 21px; height: 21px; margin-bottom: 10px; border-radius: 50%; background: var(--status); box-shadow: 0 0 14px color-mix(in srgb, var(--status), transparent 25%); }
+    .status.thinking .status-light { animation: think 1.45s ease-in-out infinite; }
+    .status strong { display: block; font-size: 13px; }
+    .status small { display: block; margin-top: 4px; color: var(--muted); line-height: 1.35; }
+    @keyframes think { 0%,100% { opacity:.35; transform:scale(.78) } 50% { opacity:1; transform:scale(1.08) } }
+
+    .layer-map { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+    .layer-map-item { display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: #fff; cursor: pointer; }
+    .layer-map-item:hover { border-color: var(--map-color); }
+    .map-light { width: 29px; height: 29px; border-radius: 9px; background: var(--map-color); box-shadow: 0 6px 15px color-mix(in srgb, var(--map-color), transparent 70%); }
+    .layer-map-item b { display: block; font-size: 12px; }
+    .layer-map-item small { color: var(--muted); }
+
+    details { border: 1px solid var(--line); border-radius: 15px; background: #fff; overflow: hidden; }
+    details + details { margin-top: 10px; }
+    summary { padding: 14px 16px; cursor: pointer; font-weight: 800; }
+    .detail-body { padding: 0 16px 16px; color: #475467; font-size: 13px; }
+    .detail-body ul { margin: 4px 0; padding-left: 20px; }
+    .detail-body li + li { margin-top: 5px; }
+    code, kbd { padding: 2px 6px; border: 1px solid #d0d5dd; border-radius: 6px; background: #f2f4f7; font-family: Consolas, monospace; font-size: .9em; }
+
+    footer { margin-top: 30px; padding: 18px 4px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 1020px) {
+      .hero, .workspace { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(3, 1fr); }
+      .layer-map { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1440px); padding-top: 10px; }
+      .topbar { top: 7px; border-radius: 14px; }
+      .brand small, .top-actions { display: none; }
+      .hero { padding-top: 30px; }
+      .quick-card { padding: 15px; }
+      .keyboard-grid { gap: 7px; }
+      .key { min-height: 116px; padding: 11px 9px; border-radius: 12px; }
+      .key-function { font-size: 13px; }
+      .key-detail { font-size: 10px; }
+      .panel { padding: 11px; border-radius: 17px; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .layer-heading { align-items: start; flex-direction: column; }
+      .result { grid-template-columns: 60px 55px 1fr; }
+    }
+    @media (max-width: 430px) {
+      .brand strong { font-size: 12px; }
+      .brand-mark { width: 34px; }
+      .layer-tab { min-width: 41px; padding-inline: 9px; }
+      .key { min-height: 106px; }
+      .key-function { font-size: 12px; }
+      .encoder-actions { grid-template-columns: 1fr; }
+      .layer-map { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: #fff; }
+      .shell { width: 100%; padding: 0; }
+      .topbar, .search-wrap, .top-actions { display: none !important; }
+      .hero { padding: 0 0 18px; grid-template-columns: 1fr; }
+      .quick-card { box-shadow: none; }
+      .panel, .quick-card { box-shadow: none; border-color: #bbb; break-inside: avoid; }
+      .workspace { grid-template-columns: 1.35fr .65fr; }
+      .key { box-shadow: none; min-height: 102px; }
+      .section { break-before: auto; }
+      footer { break-before: avoid; }
+    }
+    [hidden] { display: none !important; }
+    .device-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 20px; }
+    .device-switch button { border: 1px solid var(--line); border-radius: 999px; padding: 10px 18px; background: #fff; color: var(--muted); cursor: pointer; font: inherit; font-weight: 750; }
+    .device-switch button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .device-switch span { color: var(--muted); font-size: 12px; margin-left: 4px; }
+    .table-scroll { overflow-x: auto; }
+    .xbox-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .xbox-table th, .xbox-table td { padding: 13px 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    .xbox-table th:first-child { width: 23%; }
+    .xbox-table thead { color: var(--muted); font-size: 12px; }
+    .xbox-table tbody th { color: var(--accent); font-size: 14px; }
+    .xbox-table tbody td { font-size: 14px; }
+    .controller-note { color: var(--muted); font-size: 13px; line-height: 1.65; padding: 0 14px; }
+    @media(max-width:700px) { .device-switch span { width:100%; margin:4px 0; } .xbox-table th,.xbox-table td { padding:11px 8px; font-size:12px; } .xbox-table th:first-child { width:25%; } }
+  </style>
+<link rel="stylesheet" href="manual-navigation.css?v=20261019-shortcuts">
+</head>
+<body data-manual-page="windows">
+  <div class="shell">
+    <nav class="topbar" aria-label="层导航">
+      <div class="brand">
+        <span class="brand-mark">12E4</span>
+        <span><strong>CXT 功能手册</strong><small>12E4 · Xbox · 8 层</small></span>
+      </div>
+      <div class="layer-nav" id="layerNav"></div>
+      <div class="top-actions">
+        <button class="icon-button" id="printButton" title="打印或另存为 PDF" aria-label="打印">⌁</button>
+      </div>
+    </nav>
+    <nav class="platform-nav" aria-label="平台说明">
+      <a data-manual-page="windows" data-manual-base="./" href="./" aria-current="page">Windows 键盘 / 手柄</a>
+      <a id="otherPlatform" data-manual-page="mac" data-manual-base="mac/" href="mac/">Mac 键盘 / 手柄</a>
+      <a data-manual-page="tmux" data-manual-base="mac/tmux.html" href="mac/tmux.html">tmux / Karabiner</a>
+      <a data-manual-page="shortcuts" data-manual-base="mac/shortcuts.html" href="mac/shortcuts.html">快捷键总表</a>
+    </nav>
+
+    <header class="hero">
+      <div>
+        <div class="eyebrow">Personal Control Surface</div>
+        <h1>12E4 + Xbox<br>Windows 八层功能手册</h1>
+        <p class="lead">键盘与手柄共用 Codex、终端、Notion 等八个应用层，分别保存按键映射。按设备和层查看默认功能；自定义覆盖以本机 Bridge 的“分层按键设置”为准。</p>
+        <div class="hero-tags">
+          <span class="tag">自动随前台应用切层</span>
+          <span class="tag">键12组合切任务栏应用</span>
+          <span class="tag">两组六灯全层长按直达</span>
+          <span class="tag">Xbox 蓝牙 / USB · 同层独立映射</span>
+        </div>
+      </div>
+      <aside class="quick-card">
+        <h2>12E4 切换任务栏应用 · 按住键12，再按</h2>
+        <div class="chord">
+          <span><b>1</b> → Win+1</span><span><b>2</b> → Win+2</span><span><b>3</b> → Win+3</span><span><b>4</b> → Win+4</span>
+          <span><b>5</b> → Win+5</span><span><b>6</b> → Win+6</span><span><b>7</b> → Win+7</span><span><b>8</b> → Win+8</span>
+          <span><b>9</b> → Win+9</span><span><b>10</b> → Win+0</span><span><b>11</b> → 第11位</span>
+        </div>
+        <p class="quick-note">键1–9对应任务栏第1–9位，键10对应第10位，键11对应第11位；松开两键后执行。键12短按保留本层功能，单独按住650ms切换 tmux session 04。</p>
+      </aside>
+    </header>
+
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input id="searchInput" type="search" aria-label="搜索键盘或手柄功能" placeholder="搜索功能，例如：删除、截图、标签、滚动、推理……" autocomplete="off">
+      <span class="search-hint">Ctrl K</span>
+      <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <section id="layerSection" aria-label="当前设备与应用层">
+      <div class="device-switch" role="group" aria-label="选择设备">
+        <button type="button" data-device="keyboard" aria-pressed="true">12E4 键盘</button>
+        <button type="button" data-device="xbox" aria-pressed="false">Xbox 手柄</button>
+        <span>这里显示默认映射；本机覆盖以 Bridge 设置为准。</span>
+      </div>
+      <div class="layer-heading">
+        <div><h2 id="layerTitle"></h2><p id="layerApps"></p></div>
+        <div class="indicator-pill"><span class="dot" id="indicatorDot"></span><span id="indicatorText"></span></div>
+      </div>
+
+      <div class="workspace" id="keyboardWorkspace">
+        <article class="panel">
+          <div class="panel-title"><h3>12 个实体按键</h3><small>从左到右、从上到下：1–12</small></div>
+          <div class="keyboard-grid" id="keyboardGrid"></div>
+          <details class="layer-help" id="layerHelp">
+            <summary>补充说明</summary>
+            <div class="notes" id="layerNotes"></div>
+          </details>
+        </article>
+        <aside class="panel">
+          <div class="panel-title"><h3>4 个旋钮</h3><small>↺ 逆时针 · ● 按下 · ↻ 顺时针</small></div>
+          <div class="encoder-list" id="encoderList"></div>
+        </aside>
+      </div>
+      <article class="panel xbox-panel" id="xboxPanel" hidden>
+        <div class="panel-title"><h3>Xbox · 本层默认映射</h3><small>先按住 RT，再按组合键</small></div>
+        <div class="table-scroll"><table class="xbox-table"><thead><tr><th scope="col">操作</th><th scope="col">普通操作</th><th scope="col">按住 RT</th></tr></thead><tbody id="xboxMappings"></tbody></table></div>
+        <p class="controller-note"><b>LT</b> 按住精细移动；<b>Menu ≡</b> 短按打开任务 / 会话选择，长按约 0.85 秒暂停或恢复手柄。A / B / 方向键在选择面板内用于确认 / 取消 / 选择。</p>
+        <p class="controller-note">八层默认统一：<b>X 左键 / 按住拖拽，Y 右键，A 回车确认，B Esc</b>。<b>Codex 层按下右摇杆 R3 发送 Tab，RT + R3 为中键</b>；其他层 R3 仍为中键。A 发送 Enter，具体作用取决于前台应用；在终端会执行当前输入。<b>RT + L3</b> 执行本层专用动作，L3 单按仍打开本层设置。Xbox、View、Share 保留系统用途；当前 XInput 接口不接管这些键。普通切窗或切层会保留已经开始的拖拽；摇杆模式改变后须先回中。断连、休眠、暂停或修改配置会释放已按住的鼠标键；恢复时先松开按钮、扳机并让摇杆回中。</p>
+        <p class="controller-note">终端层 RT+A / B 使用 Ctrl+Shift+C / V；RT+X 进入 copy-mode，RT+Y 暂存 / 恢复输入。L6 使用 Total Commander。层颜色与数字仍显示在 Bridge 托盘，12E4 状态灯保持原有用途。</p>
+        <details><summary>本层补充与适用范围</summary><div class="notes" id="xboxNotes"></div></details>
+      </article>
+    </section>
+
+    <section class="section" id="controllerSetup">
+      <div class="section-header"><h2>在同一个 Bridge 里设置两种设备</h2><p>先切应用看彩色数字，再选择该层修改映射。</p></div>
+      <details open><summary>Windows 分层设置、保存与恢复</summary><div class="detail-body"><ol>
+        <li>右键托盘 Bridge → <strong>分层按键设置…</strong> → 选择 <strong>12E4 键盘</strong> 或 <strong>Xbox 手柄</strong>，再选 L1–L8。两设备共用当前层，但各自的映射互不覆盖。</li>
+        <li>12E4 可改 12 个键的短按与 4 个旋钮的三个动作；全局任务 / tmux 长按及键12应用组合保持固定。Xbox 可改两个摇杆、ABXY、十字键、LB / RB、L3 / R3 及 RT 组合；LT 精细移动与 Menu 短 / 长按固定。</li>
+        <li>切设备、切层、导入和恢复本层默认都先修改<strong>草稿</strong>，点击<strong>保存并关闭</strong>才应用；取消保留原配置。导出可保存当前草稿，导入只接受 Windows 格式，不能直接导入 Mac 配置。</li><li><strong>升级已有配置：</strong>保留所有已存映射；旧文件若写入旧版 A / B / X / Y，仍会优先于新默认。可逐个改成 A 回车、B Esc、X 左键、Y 右键，并把本层专用动作放到 RT+L3。“恢复本层默认”会重置<strong>整个当前设备当前层</strong>，包括其他自定义项；最后点“保存并关闭”应用。</li>
+        <li>“Xbox 参数与暂停应用”可调死区、鼠标速度、滚轮速度、LT 倍率及方向。Windows 滚动速度按<strong>滚轮单位 / 秒</strong>计，<strong>120 单位 = 1 格</strong>；Mac 按像素滚动，不宜直接照搬数值。</li>
+        <li>配置位于 <code>%LOCALAPPDATA%\Cxt1024Bridge\profiles.windows.json</code>，上一版保存在 <code>profiles.windows.previous.json</code>。坏配置会保留原文件、键盘回到默认映射、Xbox 暂停；不会改写键盘固件。</li>
+      </ol></div></details>
+      <details><summary>Menu 选择面板、暂停与游戏</summary><div class="detail-body"><ul>
+        <li><strong>Menu ≡ 短按</strong>打开 Codex 最近任务 / tmux 已有会话两组列表；LB / RB 切组，十字键选择，A 确认，B 或 Menu 取消。使用打开面板时的稳定任务 / 会话身份；不会创建新 session。切去其他应用会取消面板，避免在后台误选。</li>
+        <li><strong>Menu 长按约 0.85 秒</strong>或托盘“暂停 / 恢复 Xbox”只暂停手柄。每次断连、休眠、暂停或修改配置后，先松开按钮、扳机，让两个摇杆回中，再开始操作。</li>
+        <li>手柄输入<strong>非独占</strong>，游戏仍会收到原始按键。玩游戏前手动暂停，或用“在当前应用暂停 / 恢复 Xbox”加入<strong>实际游戏进程</strong>；设置中每行一个进程名，大小写不敏感，可带 <code>.exe</code>，不填写路径。</li>
+        <li>默认暂停名单只含 Steam、GameBar、GameBarFTServer，不代表已识别 Steam 启动的游戏。处于暂停进程时连 Menu 也不执行 Bridge 操作；恢复请离开该应用或用托盘。Xbox、View、Share 由系统处理。</li>
+        <li>普通跨窗口拖拽保留已按住的鼠标键；摇杆模式改变后先回中。设置窗口不会执行原应用的键盘映射；Menu 不会关闭未保存草稿。</li>
+      </ul></div></details>
+    </section>
+
+    <section class="section" id="controllerCheck">
+      <div class="section-header"><h2>Windows 实测 · 按顺序确认</h2><p>Windows 版本已有编译和纯状态回归；原生 Windows 运行、蓝牙设备与各应用操作尚待实机验收。</p></div>
+      <details open><summary>先确认连接，再测鼠标与分层</summary><div class="detail-body"><ol>
+        <li><strong>连接与回中：</strong>在 Windows 蓝牙设置中连接 Xbox 手柄，按 Xbox 键唤醒；松开所有按钮、扳机和摇杆。托盘菜单应显示 Xbox 已连接。若显示暂停，先在普通应用中从托盘恢复。</li>
+        <li><strong>鼠标：</strong>在空白页面移动左摇杆，按住 LT 后应明显变慢；X 单击链接，按住 X 拖动一个可移动窗口，再松开确认拖拽结束。Y 应打开右键菜单，B 应发出 Esc；在安全的测试对话框中用 A 确认。</li>
+        <li><strong>滚动与选择：</strong>在较长网页上推右摇杆上下滚动；短按 Menu 应打开列表，LB / RB 切组，B 关闭。先只取消，不选没有确认的项目。</li>
+        <li><strong>暂停：</strong>在普通应用中长按 Menu 约 0.85 秒，鼠标与快捷键应停止；再次长按恢复，释放所有输入后再移动摇杆。</li>
+        <li><strong>应用层：</strong>分别切到 Codex、Windows Terminal、Notion，观察托盘数字变为 1、2、3。Codex 的 RT+L3 聚焦输入框，按下右摇杆 R3 发送 Tab，RT+R3 保留中键；Notion 的 RT+L3 打开快速搜索。X / Y 的鼠标功能和 A / B 的确认 / 取消在全部八层保持一致。</li>
+        <li><strong>已有 tmux：</strong>只在已有 session 中测试 RT+L3 缩放 pane，RT+十字键切 pane，RT+LB / RB 切已有 session。RT+X 进 copy-mode，RT+Y 暂存 / 恢复输入；菜单确认后会话总数不应增加。RT+A / B 是终端复制 / 粘贴，先使用无执行风险的短文本，不自动发送回车。</li>
+        <li><strong>保存与隔离：</strong>把 Xbox 某层的一个按钮临时设为“不执行动作”，保存并关闭；该按钮应仅在该层停用，12E4 同层不受影响。再恢复本层默认并保存。记录失败时的应用、层号、按钮、预期与实际结果，便于对照日志。</li>
+      </ol></div></details>
+    </section>
+
+    <section class="section">
+      <div class="section-header"><h2>ChatGPT 六任务状态灯</h2><p>所有层中，键1、2、3、5、6、7始终对应任务1–6并显示实时状态；当前层指示灯另外叠加显示。</p></div>
+      <div class="status-grid">
+        <div class="status" style="--status:#ffffff"><span class="status-light" style="border:1px solid #d0d5dd"></span><strong>白色 · 空闲 / 已查看</strong><small>任务没有未处理状态。</small></div>
+        <div class="status thinking" style="--status:#0000ff"><span class="status-light"></span><strong>深蓝动态 · 思考中</strong><small>亮度流动/闪烁，表示任务正在运行。</small></div>
+        <div class="status" style="--status:#00b000"><span class="status-light"></span><strong>深绿色 · 已完成</strong><small>新结果尚未查看；打开任务后恢复白色。</small></div>
+        <div class="status" style="--status:#ffb000"><span class="status-light"></span><strong>琥珀黄 · 等待输入</strong><small>任务暂停，正在等你的回答或操作。</small></div>
+        <div class="status" style="--status:#ff0000"><span class="status-light"></span><strong>红色 · 出错</strong><small>任务出现错误，需要打开检查。</small></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header"><h2>层指示灯位置与颜色</h2><p>L1–L8依次在键1–8双呼吸；两组六个实时状态灯仍在所有层保留，提示结束后立即恢复被覆盖的任务或 session 状态。</p></div>
+      <div class="layer-map" id="layerMap"></div>
+    </section>
+
+    <section class="section">
+      <div class="section-header"><h2>运行规则与排错</h2><p>忘记行为时先看下面几项。</p></div>
+      <details>
+        <summary>自动切层与手动覆盖</summary>
+        <div class="detail-body"><ul>
+          <li>托盘“使用说明（Windows / Mac）”打开此域名下的 Windows 手册，可从顶部切换到 Mac；“快捷键总表”打开 <a href="https://cxt12e4.11166666.xyz/">新域名首页</a>。下载源码中的 <code>docs/cxt12e4-manual/index.html</code> 也可直接在浏览器离线打开。快捷键总表记录维护者的 Mac 配置，不是 Windows Bridge 的默认键位。</li>
+          <li>Bridge 根据前台进程自动选择专用层；L5“3D建模 / Blender”只精确匹配 <code>blender.exe</code>。浏览器和未匹配应用统一进入 L8“通用 / 浏览器”，全层固定绑定，没有浏览器子配置。用户只看到L1–L8，内部索引0和手册 <code>?layer=0</code> 仍兼容显示L8。</li>
+          <li>新电脑不能只插键盘：从 <a href="https://github.com/zhangyu0806/CXT12E4-Bridge">项目仓库</a>取得默认 main 分支源码后运行 <code>install\windows-home\Install-Cxt12E4Bridge.ps1</code>。安装器先本机编译和自测，再备份旧版、安装用户级 Bridge、设置开机启动并验证唯一进程；使用tmux与Agent状态灯时增加 <code>-InstallWslIntegrations</code>。它不刷固件，也不携带凭据或当前电脑的私人配置。</li>
+          <li>Windows Terminal 自动进入 L2，但程序无法判断当前标签是否真的在运行 tmux；必要时可手动切层。</li>
+          <li>键12组合用于打开或切换 Windows 任务栏应用；应用成为前台窗口后，Bridge 会自然切到对应层。</li>
+          <li>托盘菜单可按 L1–L8 顺序直接手选；手选层保持到前台窗口发生变化，再恢复自动判断。键12长按现统一用于 tmux session 04，不再回 L8。</li>
+          <li>L1–L8 中，任务灯键1、2、3、5、6、7按住650ms切换并聚焦 ChatGPT任务1–6；Bridge 会在深链接前激活 ChatGPT，之后复核实际前台窗口并重试，避免只闪任务栏却仍停在tmux。session灯键9、10、11、12、8、4按住650ms切换最活跃tmux客户端到当前存在的session 01–06，并优先把最近使用的Windows Terminal窗口拉到前台。session不存在时不切换、不抢焦点。短按只执行当前层功能；组合键优先取消长按。</li>
+          <li>旋钮按压松开后执行一次；窗口进度标题更新不再取消650ms长按。快速旋转过期的旧动作不回放；请独立操作旋钮，检测到与其他键同码重叠时会取消，全部松开后重试。私有右Ctrl标记仍经过系统，Listary的双Ctrl开关仍需单独关闭。</li>
+          <li>托盘“退出”会同时停止watchdog，不再自动拉起；KBT不参与自动切层，也不需要后台运行。</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>Codex 官方接口与自动回退</summary>
+        <div class="detail-body"><ul>
+          <li>Bridge 优先通过官方 Codex App Server 的稳定 <code>stdio</code> JSONL 接口调用 <code>thread/list</code>，获取任务 ID、标题、顺序与 rollout 路径。</li>
+          <li>本机只读验证中，官方接口前12个线程与原本地目录 <strong>12/12 ID 一致</strong>；接口不可用时自动回退到只读本地目录，30秒后重试。</li>
+          <li>ChatGPT 桌面应用使用另一 App Server 进程，独立连接会把桌面线程报告为 <code>notLoaded</code>，所以实时蓝/绿/黄/红任务灯继续读取双方共享的 rollout 事件日志。</li>
+          <li>任务聚焦、语音与界面工具仍使用深链、UI Automation 和现有快捷键；本阶段的官方接口接入严格只读，不会启动、恢复、分叉、中断或修改任务。</li>
+          <li>诊断命令：<code>Cxt12E4Bridge.exe --codex-app-server-probe</code>。Codex CLI 不在默认目录时，可设置 <code>CXT_CODEX_PATH</code>。</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>统一长按与短按</summary>
+        <div class="detail-body"><ul>
+          <li>K4 在 L1–L8 旋转时统一发送连续加速、无修饰键的纵向滚轮，各层只保留不同的按下功能；Blender的3D视图将滚轮解释为缩放，面板通常用于滚动，不是绕视角。Bridge 会先等待旋钮私有触发码的右 Ctrl 标记松开，再发送滚轮，避免浏览器误触 Ctrl+滚轮缩放。</li>
+          <li>键9保留各层短按语义：L1显示／隐藏左侧栏；L2暂存或恢复Agent未发送输入；L5撤销；L8新标签；其他层保持原功能。长按始终进入tmux session 01。</li>
+          <li>L4与L7键9短按仍分别关闭笔记、清空输入；长按统一进入tmux session 01，不再打开旧命令面板或上下文菜单。</li>
+          <li>L5键4短按旋转 <code>R</code>，L8键4短按重做 <code>Ctrl+Y</code>；长按均只进入tmux session 06。浏览器刷新已放到L8的K4按下 <code>F5</code>。</li>
+          <li>K12任务栏组合必须始终停留在键12按下时的同一前台窗口、层和上下文；中途切换窗口会取消组合。键12长按动作已经触发后，再补按功能键也不会追加第二个组合动作。L1键4组合已删除。</li>
+        </ul></div>
+      </details>
+      <details>
+        <summary>灯光与硬件备注</summary>
+        <div class="detail-body"><ul>
+          <li>Windows全局键盘和鼠标连续40分钟没有输入时，Bridge会暂停灯光心跳，固件随后熄灭全部12颗灯；下一次真实键鼠输入后自动恢复当前任务、tmux和层提示状态，不影响快捷键。</li>
+          <li>Bridge 心跳中断约 3 秒后，固件会熄灭所有灯，避免保留错误状态。</li>
+          <li>输入接收、日志和状态镜像已分开运行；输入钩子每10秒自动刷新。若再次出现“灯亮但按键无效”或短暂全灭，请保留发生时间，日志会记录输入收发与心跳延迟，便于定位。</li>
+          <li>Windows 通知区的当前层图标使用铺满画布的高对比方形色块和最大化数字；亮色层自动显示黑字，暗色层自动显示白字，比旧版小圆图标更醒目。</li>
+          <li>12颗灯同时纯白诊断：运行 <code>Cxt12E4Bridge.exe --all-light-test-white 15</code>；测试结束后恢复实时灯光，不写固件或 EEPROM。</li>
+          <li>所有层从底排左侧开始，键9、10、11、12、8、4依次对应 tmux session 01–06；L1–L8依次在键1–8短暂双呼吸，平时仍显示任务或 session 状态。深蓝运行态继续做亮度流动。</li>
+          <li>Bridge 读取实时 tmux pane/session 清单，以session ID、创建时间和server PID区分同名重建会话；pane编号复用或tmux重启不会再让4–6号灯串位。同一01–06编号同时存在多个session时，对应灯熄灭且长按拒绝切换。WSL传输超时或异常不再等同于session消失：已有可信清单时继续显示最后一次已验证状态，并按2秒逐步退避到最多60秒重试；只有tmux明确报告no-server才清灯。Bridge重启后仅在同一次Windows启动内使用最长1小时的严格清单缓存，跨系统重启、过期或损坏缓存均拒绝；缓存只续显灯光，长按切换仍须实时确认session。任意层长按灯位在WSL内紧邻switch-client取得同源revision截点：切换前已有完成确认成白色，切入后才完成仍锁绿。外部tmux切换没有可靠的先后事件，因此不会自动清绿，请用灯位长按完成“切回并确认”。即使thinking→completed整轮夹在两次轮询之间，新revision也不会漏掉。</li>
+          <li>OpenCode 与 Claude Code 使用各自的官方插件/hooks事件上报状态；Claude被用户中断时以其后续idle_prompt通知恢复白色，专用过滤器不会误处理Grok输入，并只在原状态仍为运行/等待时写idle，不会覆盖正常Stop已经写入的completed绿灯；Grok专有hooks独立放在其hooks目录，不污染Claude设置。Grok在计划批准或权限放行后，一旦继续调用工具，会把同一pane遗留的黄色等待态恢复为蓝色运行态；其他pane若确实仍在等待，session仍保持黄色。已有进程需要在/hooks中重载或重启一次才会加载新上报器。</li>
+          <li>两把键盘均已同步 v11 固件：第一把于 2026-08-25 刷入，第二把于 2026-08-26 刷入。v11 保留 ChatGPT 与 tmux 两组六灯及深蓝运行呼吸，并把 tmux session 01–06 的灯位改为键9、10、11、12、8、4；用户可见的L1–L8仍按键1–8顺序做醒目的双呼吸层提示，L8在固件协议内部仍使用索引0。两次刷写的 DFU 内置校验均通过；第二把又独立读回完整 28,672 字节应用区，与源镜像逐字节一致，重新枚举后的 Raw HID 协议1探测通过。</li>
+          <li>键2绿通道曾出现间歇性失效：白色会暂时表现为粉色，随后可能恢复。这是灯珠硬件问题，不是任务状态。</li>
+          <li>键10红通道测试异常，因此 L6 使用不依赖红通道的冰蓝色，L7 使用绿色。</li>
+          <li>灯珠型号确认为 <code>SK6812MINI-E</code>：3228 封装、5V、四脚侧翼；更换时优先选 12mA 版本，并再次核对缺口方向和焊盘定义。</li>
+        </ul></div>
+      </details>
+    </section>
+
+    <footer>
+      <span>CXT 12E4 + Xbox · Windows Bridge 配置说明</span>
+      <span>更新：2026-10-20 · 修订：20261020-codex-tab · 配置源：WindowsLayerProfiles / ActionEngine / QMK firmware</span>
+    </footer>
+  </div>
+
+  <script src="manual-navigation.js?v=20261022-domain"></script>
+<script>
+    const layers = [
+      {
+        n:8, name:'通用 / 浏览器', color:'#344054', rgb:'52,64,84', lightColor:'#7088B8', indicator:'键8 · 每约1.5秒冷灰蓝双呼吸', keyLight:8,
+        apps:'Edge / Chrome / Vivaldi / Brave / Arc / Browser Pro+ / O-browser / Flash Browser 及未匹配应用 · 全层固定绑定，无浏览器子配置',
+        keys:[
+          ['PixPin 截图','Ctrl + Alt + C'],['PixPin 贴图','Ctrl + Alt + V'],['撤销','Ctrl + Z'],['重做','Ctrl + Y'],
+          ['剪切','Ctrl + X'],['复制','Ctrl + C'],['粘贴','Ctrl + V'],['纯文本粘贴','Ctrl + Shift + V'],
+          ['新标签','Ctrl + T'],['恢复关闭标签','Ctrl + Shift + T'],['查找','Ctrl + F'],['打开 CopyQ / K12组合','点按 CopyQ；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','后退 · Alt+Left','地址栏 · Ctrl+L','前进 · Alt+Right'],['K2 · 右上小旋钮','上一个标签 · Ctrl+Shift+Tab','关闭标签 · Ctrl+W','下一个标签 · Ctrl+Tab'],['K3 · 中间大旋钮','缩小 · Ctrl+Minus','恢复100% · Ctrl+0','放大 · Ctrl+Plus'],['K4 · 下方大旋钮','加速向上滚动','刷新 · F5','加速向下滚动']],
+        notes:['所有L8应用发送同一套实际绑定，功能名称仅表示支持这些快捷键时的预期作用；其他应用可能无效或赋予不同含义。PixPin / CopyQ需要对应程序与快捷键配置可用。','删除一词、删除当前行、清空输入，以及原浏览器收藏、复制标签/网址、历史、下载、开发者工具、全屏等低频操作改用普通键盘。两组六灯、650ms长按和K12任务栏组合不变。']
+      },
+      {
+        n:1, name:'ChatGPT', color:'#C000C8', rgb:'192,0,200', indicator:'键1 · 每约1.5秒紫红双呼吸', keyLight:1,
+        apps:'自动匹配 ChatGPT.exe · 六个并行任务、推理强度与对话导航',
+        keys:[
+          ['任务 1','单击切换；350ms 内双击并聚焦'],['任务 2','单击切换；350ms 内双击并聚焦'],['任务 3','单击切换；350ms 内双击并聚焦'],['分叉任务','从当前最新回复创建聊天分支'],
+          ['任务 4','单击切换；350ms 内双击并聚焦'],['任务 5','单击切换；350ms 内双击并聚焦'],['任务 6','单击切换；350ms 内双击并聚焦'],['快速聊天开 / 关','首次调用侧栏按钮，再按发送 Esc 收起'],
+          ['显示 / 隐藏侧栏','切换左侧任务栏；长按切 tmux session 01'],['显示 / 隐藏侧面板','切换 Codex 右侧审阅面板；长按切 tmux session 02'],['Codex 内打开 ChatGPT','在 Codex 内置浏览器直接打开 ChatGPT 首页；长按切 tmux session 03'],['普通任务 / K12组合','Ctrl+Alt+O 新建独立聊天，不归属项目；长按切 tmux session 04；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','降低强度；Astra轻度再逆转进入Sol最高','Astra Ultra + Fast','提高强度；Sol最高再顺转进入Astra轻度'],['K2 · 右上小旋钮','上一个相邻任务','Astra 高 / High + 普通 / Standard','下一个相邻任务'],['K3 · 中间大旋钮','光标向前移动一词','聚焦输入框','光标向后移动一词'],['K4 · 下方大旋钮','对话加速向上滚动','跳到对话底部','对话加速向下滚动']],
+        notes:['键8第一次调用当前界面的“快速聊天 / Quick chat”；只有成功打开后，再按一次才发送 Esc 收起并复位，不再发送失效的 Ctrl+Shift+N。键9短按兼容当前“隐藏／显示侧边栏”和旧版中英文名称，并用左栏专用类名后备，不会误点右侧“侧边面板”；键10用 Ctrl+Alt+B 显示／隐藏右侧审阅面板。L1不再保留单键发送、停止或清空。','K1旋转沿 GPT-6 Sol 轻度→中→高→极高→最高→GPT-6 Astra 轻度→中→高→极高→最高连续切换，两端止步；手动选Ultra后首次旋转先回同模型最高。K1按下仍为Astra Ultra + Fast并处理完整访问权限，K2按下仍为Astra High + Standard。切换后核对准确模型与档位；不可用时停止并记日志。键12用 Ctrl+Alt+O 新建独立聊天，不继承当前项目。','Listary普通快捷键与“连续按两次Ctrl显示／隐藏Listary”是独立设置。旋钮以右Ctrl作为硬件标记，若Listary仍监听双Ctrl，快速旋转会误呼出；需在Listary快捷键设置中单独关闭这个双Ctrl开关。']
+      },
+      {
+        n:2, name:'终端 / tmux', color:'#FF1464', rgb:'255,20,100', indicator:'键2 · 每约1.5秒粉色双呼吸', keyLight:2,
+        apps:'自动匹配 WindowsTerminal.exe · pane＝window内分屏，window＝session内页面，session＝最高层工作区 · Bridge直接定位当前tmux目标，不受中文输入法影响',
+        keys:[
+          ['右侧新建 pane','在当前window内：Ctrl+S → L'],['下方新建 pane','在当前window内：Ctrl+S → J；原左侧新建已取消'],['左右 pane 切换','有右侧pane则向右，否则向左；双pane直接往返，不跨window'],['上下 pane 切换','有下方pane则向下，否则向上；双pane直接往返，不跨window'],
+          ['缩放当前 pane','直接调用tmux放大到整个window／恢复原布局'],['切换pane均分布局','两个及以上pane：横向一排／纵向一列切换；混合布局先归一为横排'],['轮换 pane 位置','直接在当前window内循环换位'],['window 选择器','在当前客户端列出当前session的window'],
+          ['暂存／恢复输入','把当前pane和Agent直接交给专用动作脚本'],['tmux copy-mode','直接进入当前pane历史模式'],['搜索终端历史','Windows Terminal：稳定发送 Ctrl+Shift+F'],['上一个 pane / K12组合','短按直接回上一个pane；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','pane边界向左5格','均衡pane宽度','pane边界向右5格'],['K2 · 右上小旋钮','pane边界向上5格','均衡pane高度','pane边界向下5格'],['K3 · 中间大旋钮','当前session上一个window','回到上一个window','当前session下一个window'],['K4 · 下方大旋钮','向上真实加速滚动','滚到历史最底部','向下真实加速滚动']],
+        notes:['层级严格区分：键1–7、10、12及K1／K2操作pane，键8和K3操作window，650ms长按灯位只操作session。','L2键1–10、12及K1–K3先解析最近活跃tmux客户端的精确session／window／pane，再直接执行tmux命令；不再模拟前缀加字母，因此中文输入法打开时仍可使用。键11和K4继续操作Windows Terminal界面。只有键9需要识别当前Agent；自动层只能识别Windows Terminal，不能确认当前标签是否在tmux。']
+      },
+      {
+        n:3, name:'Notion', color:'#FF6000', rgb:'255,96,0', indicator:'键3 · 每约1.5秒橙色双呼吸', keyLight:3,
+        apps:'自动匹配 Notion.exe · 页面、块、标签与宽表格导航',
+        keys:[
+          ['新页面','Ctrl + N'],['新标签','Ctrl + T'],['页内查找','Ctrl + F'],['切换深浅色','Ctrl + Shift + L'],
+          ['评论','Ctrl + Shift + M'],['复制块','Ctrl + D'],['块菜单','Ctrl + /'],['复制页面链接','Ctrl + L'],
+          ['删除块','Delete'],['待办块','Ctrl + Shift + 4'],['代码块','Ctrl + Shift + 8'],['全屏 / K12组合','点按 F11；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','页面后退','上一级','页面前进'],['K2 · 右上小旋钮','上一个标签','快速搜索','下一个标签'],['K3 · 中间大旋钮','宽表格向左滚动','切换页面全宽','宽表格向右滚动'],['K4 · 下方大旋钮','页面向上滚动','跳到顶部','页面向下滚动']],
+        notes:['K3 按下通过 Notion 页面菜单切换“全宽”。']
+      },
+      {
+        n:4, name:'Obsidian', color:'#8000FF', rgb:'128,0,255', indicator:'键4 · 每约1.5秒紫色双呼吸', keyLight:4,
+        apps:'自动匹配 Obsidian.exe · 笔记、链接、任务、日记与阅读模式',
+        keys:[
+          ['新笔记','Ctrl + N'],['快速切换','Ctrl + O'],['库内搜索','Ctrl + Shift + F'],['命令面板','Ctrl + P'],
+          ['内部链接','输入 [['],['切换任务','Ctrl + Enter'],['改名 / 移动','F2'],['复制笔记链接','命令：Copy Obsidian URL'],
+          ['关闭','短按 Ctrl+W'],['今日日记','命令：Open today\'s daily note'],['模板 / 大纲','有模板配置时模板，否则大纲'],['编辑 / 阅读 / K12组合','点按 Ctrl+E；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','历史后退','显示反向链接','历史前进'],['K2 · 右上小旋钮','上一个标签','恢复关闭标签','下一个标签'],['K3 · 中间大旋钮','缩小','恢复 100%','放大'],['K4 · 下方大旋钮','内容向上滚动','跳到顶部','内容向下滚动']],
+        notes:['Windows 模板 / 大纲自动选择仍依赖旧版库路径，尚不能自动识别任意 Obsidian 库；可在分层设置中替换此动作。']
+      },
+      {
+        n:5, name:'3D建模 / Blender', color:'#E5B900', rgb:'229,185,0', lightColor:'#FFDC00', indicator:'键5 · 每约1.5秒金黄色双呼吸', keyLight:5,
+        apps:'只精确自动匹配 blender.exe · Blender默认键位；不适用于Industry Compatible或自定义键位',
+        keys:[
+          ['对象 / 编辑模式','Tab'],['挤出','E'],['移动','G'],['旋转','R'],
+          ['缩放','S'],['内插面','I'],['倒角','Ctrl + B'],['复制','Shift + D'],
+          ['撤销','Ctrl + Z'],['重做','Ctrl + Shift + Z'],['添加','Shift + A'],['操作搜索 / K12组合','点按 F3；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','绕视角左 · Numpad4','前视 · Numpad1','绕视角右 · Numpad6'],['K2 · 右上小旋钮','绕视角上 · Numpad8','顶视 · Numpad7','绕视角下 · Numpad2'],['K3 · 中间大旋钮','上一帧 · Left','播放 / 暂停 · Space','下一帧 · Right'],['K4 · 下方大旋钮','无修饰键加速向上滚轮','框选中 · NumpadDecimal','无修饰键加速向下滚轮']],
+        notes:['将鼠标停在正确编辑器上：建模和视角操作通常需要3D视图，并处于适用的对象 / 编辑模式和选中状态。挤出、移动、旋转、缩放等模态命令仍需鼠标确认或Esc取消；文本框获得焦点时可能接收字符，不会自动修正上下文。','K4旋转与其他层一样发送无修饰键的加速滚轮：3D视图中缩放，面板中滚动，不是绕视角。Space播放 / 暂停需保留默认空格键动作Play。仅支持Blender默认键位；其他3D软件不会自动匹配L5，未来需单独适配。两组六灯、650ms长按和K12任务栏组合不变。']
+      },
+      {
+        n:6, name:'Total Commander', color:'#00A7D6', rgb:'0,167,214', lightColor:'#00C8FF', indicator:'键6 · 每约1.5秒冰蓝双呼吸', keyLight:6,
+        apps:'自动匹配 TOTALCMD64.exe / TOTALCMD.exe · 双面板文件管理',
+        keys:[
+          ['复制','F5'],['移动','F6'],['新目录','F7'],['批量改名','TC 内部命令 2400'],
+          ['复制 Linux 路径','Ctrl + 1'],['复制文件名','Ctrl + 2'],['复制完整路径','Ctrl + 3'],['快速搜索','Alt + Q'],
+          ['删除','F8'],['比较','TC 内部命令 2022'],['同步','TC 内部命令 2020'],['压缩 / 解压 / K12组合','点按 Ctrl+Alt+F5；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','目录后退','上级目录','目录前进'],['K2 · 右上小旋钮','聚焦左面板','交换左右面板','聚焦右面板'],['K3 · 中间大旋钮','上一个标签','锁定当前标签','下一个标签'],['K4 · 下方大旋钮','文件列表向上滚动','快速查看','文件列表向下滚动']],
+        notes:[]
+      },
+      {
+        n:7, name:'通讯', color:'#00C853', rgb:'0,200,83', lightColor:'#00FF00', indicator:'键7 · 每约1.5秒绿色双呼吸', keyLight:7,
+        apps:'自动匹配微信 / WeChat / Telegram / QQ · 通用编辑，部分动作依客户端而定',
+        keys:[
+          ['上一会话','Alt + ↑'],['下一会话','Alt + ↓'],['跳到未读','Ctrl + Shift + ↓'],['搜索','Ctrl + F'],
+          ['复制','Ctrl + C'],['纯文本粘贴','Ctrl + Shift + V'],['回复待适配','短按不发送；长按任务6不变'],['发送','Enter'],
+          ['清空','短按清空'],['表情','Win + .'],['输入换行','Shift + Enter'],['空置 / K12组合','短按空置；组合切任务栏']
+        ],
+        enc:[['K1 · 左上小旋钮','光标前移一词','行首 Home','光标后移一词'],['K2 · 右上小旋钮','向左选择一词','全选','向右选择一词'],['K3 · 中间大旋钮','缩小','恢复 100%','放大'],['K4 · 下方大旋钮','内容向上滚动','跳到底部','内容向下滚动']],
+        notes:['键7短按暂不分配：Ctrl+R在Telegram中可能开启录音，不能作为通用回复。Typeless语音统一使用主键盘Right Alt。旋钮按压松开后执行一次；不与其他CXT键或主键盘右Ctrl同时按住。']
+      }
+    ];
+
+    // Generated from WindowsLayerProfiles via --dump-default-profiles; no Mac shortcut translation.
+    const xboxProfiles = {
+  "1": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "encoder.1.2",
+      "rtTitle": "K1 顺时针 · 提高推理强度"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "encoder.1.0",
+      "rtTitle": "K1 逆时针 · 降低推理强度"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.9",
+      "rtTitle": "键 9 · 显示 / 隐藏侧栏"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · 显示 / 隐藏侧面板"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "encoder.3.0",
+      "rtTitle": "K3 逆时针 · 光标前移一词"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "encoder.3.2",
+      "rtTitle": "K3 顺时针 · 光标后移一词"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "codex.composer",
+      "rtTitle": "聚焦聊天输入框"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "key.tab",
+      "title": "Tab",
+      "rtAction": "mouse.middle",
+      "rtTitle": "鼠标中键"
+    }
+  ],
+  "2": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "终端复制 · Ctrl+Shift+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "终端粘贴 · Ctrl+Shift+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · tmux copy-mode"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "button.9",
+      "rtTitle": "键 9 · 暂存 / 恢复 Agent 输入"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "tmux.pane.up",
+      "rtTitle": "上方 pane"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "tmux.pane.down",
+      "rtTitle": "下方 pane"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "tmux.pane.left",
+      "rtTitle": "左方 pane"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "tmux.pane.right",
+      "rtTitle": "右方 pane"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "tmux.session.previous",
+      "rtTitle": "上一个已有 session"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "tmux.session.next",
+      "rtTitle": "下一个已有 session"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "button.5",
+      "rtTitle": "键 5 · 缩放当前 pane"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "3": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "key.pageup",
+      "rtTitle": "Page Up"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "key.pagedown",
+      "rtTitle": "Page Down"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · 待办块"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.11",
+      "rtTitle": "键 11 · 代码块"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "button.1",
+      "rtTitle": "键 1 · 新页面"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "button.2",
+      "rtTitle": "键 2 · 新标签"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "encoder.2.1",
+      "rtTitle": "K2 按下 · 快速搜索"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "4": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "key.pageup",
+      "rtTitle": "Page Up"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "key.pagedown",
+      "rtTitle": "Page Down"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.12",
+      "rtTitle": "键 12 · 编辑 / 阅读"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · 今日日记"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "button.1",
+      "rtTitle": "键 1 · 新笔记"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "button.4",
+      "rtTitle": "键 4 · 命令面板"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "button.2",
+      "rtTitle": "键 2 · 快速切换"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "5": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.blender",
+      "title": "Blender 旋转视角",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "button.3",
+      "rtTitle": "键 3 · 移动"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "button.4",
+      "rtTitle": "键 4 · 旋转"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.5",
+      "rtTitle": "键 5 · 缩放"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.12",
+      "rtTitle": "键 12 · 操作搜索"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "encoder.3.0",
+      "rtTitle": "K3 逆时针 · 上一帧"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "encoder.3.2",
+      "rtTitle": "K3 顺时针 · 下一帧"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "button.1",
+      "rtTitle": "键 1 · 对象 / 编辑模式"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "6": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "encoder.1.1",
+      "rtTitle": "K1 按下 · 上级目录"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "encoder.4.1",
+      "rtTitle": "K4 按下 · 快速查看"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.4",
+      "rtTitle": "键 4 · 批量改名"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.5",
+      "rtTitle": "键 5 · Linux 路径"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "button.3",
+      "rtTitle": "键 3 · 新目录"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "button.8",
+      "rtTitle": "键 8 · 快速搜索"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "files.open",
+      "rtTitle": "打开 Total Commander 所选项目"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "7": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "key.pageup",
+      "rtTitle": "Page Up"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "key.pagedown",
+      "rtTitle": "Page Down"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "key.home",
+      "rtTitle": "Home"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "key.end",
+      "rtTitle": "End"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · 表情"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "button.11",
+      "rtTitle": "键 11 · 输入换行"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "button.4",
+      "rtTitle": "键 4 · 搜索"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ],
+  "8": [
+    {
+      "control": "leftstick",
+      "label": "左摇杆",
+      "action": "stick.mouse",
+      "title": "移动鼠标",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "rightstick",
+      "label": "右摇杆",
+      "action": "stick.scroll",
+      "title": "双向滚动",
+      "rtAction": "none",
+      "rtTitle": "—"
+    },
+    {
+      "control": "a",
+      "label": "A",
+      "action": "key.enter",
+      "title": "回车",
+      "rtAction": "edit.copy",
+      "rtTitle": "复制 · Ctrl+C"
+    },
+    {
+      "control": "b",
+      "label": "B",
+      "action": "key.escape",
+      "title": "Esc",
+      "rtAction": "edit.paste",
+      "rtTitle": "粘贴 · Ctrl+V"
+    },
+    {
+      "control": "x",
+      "label": "X",
+      "action": "mouse.left",
+      "title": "鼠标左键 / 按住拖拽",
+      "rtAction": "edit.undo",
+      "rtTitle": "撤销 · Ctrl+Z"
+    },
+    {
+      "control": "y",
+      "label": "Y",
+      "action": "mouse.right",
+      "title": "鼠标右键",
+      "rtAction": "edit.redo",
+      "rtTitle": "重做（按当前应用）"
+    },
+    {
+      "control": "up",
+      "label": "十字键 ↑",
+      "action": "key.up",
+      "title": "↑",
+      "rtAction": "key.pageup",
+      "rtTitle": "Page Up"
+    },
+    {
+      "control": "down",
+      "label": "十字键 ↓",
+      "action": "key.down",
+      "title": "↓",
+      "rtAction": "key.pagedown",
+      "rtTitle": "Page Down"
+    },
+    {
+      "control": "left",
+      "label": "十字键 ←",
+      "action": "key.left",
+      "title": "←",
+      "rtAction": "button.10",
+      "rtTitle": "键 10 · 恢复关闭标签"
+    },
+    {
+      "control": "right",
+      "label": "十字键 →",
+      "action": "key.right",
+      "title": "→",
+      "rtAction": "button.11",
+      "rtTitle": "键 11 · 查找"
+    },
+    {
+      "control": "lb",
+      "label": "LB 左肩键",
+      "action": "navigation.previous",
+      "title": "本层：上一个 / 后退",
+      "rtAction": "encoder.1.0",
+      "rtTitle": "K1 逆时针 · 后退"
+    },
+    {
+      "control": "rb",
+      "label": "RB 右肩键",
+      "action": "navigation.next",
+      "title": "本层：下一个 / 前进",
+      "rtAction": "encoder.1.2",
+      "rtTitle": "K1 顺时针 · 前进"
+    },
+    {
+      "control": "l3",
+      "label": "L3 左摇杆按下",
+      "action": "bridge.help",
+      "title": "打开本层设置 / 按键说明",
+      "rtAction": "button.9",
+      "rtTitle": "键 9 · 新标签"
+    },
+    {
+      "control": "r3",
+      "label": "R3 右摇杆按下",
+      "action": "mouse.middle",
+      "title": "鼠标中键",
+      "rtAction": "none",
+      "rtTitle": "—"
+    }
+  ]
+};
+    // Navigation behavior is shared with WindowsMappedActions.NavigateProfile.
+    const xboxNavigationNotes = {
+      1:'LB / RB：上一个 / 下一个 Codex 任务。R3（按下右摇杆）发送 Tab；RT+R3 保留鼠标中键。',
+      2:'LB / RB：当前 session 的上一个 / 下一个 window；RT+LB / RB 才是切换已有 session。',
+      3:'LB / RB：Notion 页面历史后退 / 前进。',
+      4:'LB / RB：Obsidian 历史后退 / 前进（Alt+Left / Right）。',
+      5:'LB / RB：上一帧 / 下一帧；右摇杆用于旋转视角。',
+      6:'LB / RB：Total Commander 目录历史后退 / 前进；RT+L3 打开当前选中项目。',
+      7:'LB / RB：上一会话 / 下一会话，具体效果取决于通讯客户端。',
+      8:'LB / RB：浏览器后退 / 前进（Alt+Left / Right），不是切换标签。'
+    };
+    const indicatorMap = [
+      {n:8,key:'键8双呼吸',color:'#7088B8',name:'通用 / 浏览器'}, {n:1,key:'键1双呼吸',color:'#C000C8',name:'ChatGPT'},
+      {n:2,key:'键2双呼吸',color:'#FF1464',name:'终端 / tmux'}, {n:3,key:'键3双呼吸',color:'#FF6000',name:'Notion'},
+      {n:4,key:'键4双呼吸',color:'#8000FF',name:'Obsidian'}, {n:5,key:'键5双呼吸',color:'#FFDC00',name:'3D建模 / Blender'},
+      {n:6,key:'键6双呼吸',color:'#00C8FF',name:'Total Commander'}, {n:7,key:'键7双呼吸',color:'#00FF00',name:'通讯'}
+    ];
+
+    const positions = ['左上','上二','上三','右上','中左','中二','中三','中右','左下','下二','下三','右下'];
+    const taskSlotByKey = {1:1, 2:2, 3:3, 5:4, 6:5, 7:6};
+    const tmuxSlotByKey = {9:1, 10:2, 11:3, 12:4, 8:5, 4:6};
+    const initialSelection = window.ManualNavigation.read(location.search);
+    let currentDevice = initialSelection.device;
+    let current = initialSelection.layer;
+
+    function globalHoldText(keyNumber) {
+      const taskSlot = taskSlotByKey[keyNumber];
+      if (taskSlot) return `按住 650ms → ChatGPT 任务 ${taskSlot}（并聚焦）`;
+      const tmuxSlot = tmuxSlotByKey[keyNumber];
+      return tmuxSlot ? `按住 650ms → tmux session ${String(tmuxSlot).padStart(2, '0')}` : '';
+    }
+
+    const layerNav = document.getElementById('layerNav');
+    const keyboardGrid = document.getElementById('keyboardGrid');
+    const encoderList = document.getElementById('encoderList');
+    const layerNotes = document.getElementById('layerNotes');
+    const layerHelp = document.getElementById('layerHelp');
+    const layerMap = document.getElementById('layerMap');
+
+    document.querySelectorAll('[data-device]').forEach(button => button.addEventListener('click', () => {
+      currentDevice = button.dataset.device; showLayer(current);
+    }));
+
+    const orderedLayers = [...layers].sort((left, right) => left.n - right.n);
+    orderedLayers.forEach(layer => {
+      const button = document.createElement('button');
+      button.className = 'layer-tab';
+      button.textContent = `L${layer.n}`;
+      button.title = layer.name;
+      button.setAttribute('aria-label', `L${layer.n} · ${layer.name}`);
+      button.addEventListener('click', () => showLayer(layer.n));
+      layerNav.append(button);
+    });
+
+    [...indicatorMap].sort((left, right) => left.n - right.n).forEach(item => {
+      const button = document.createElement('button');
+      button.className = 'layer-map-item';
+      button.style.setProperty('--map-color', item.color);
+      button.innerHTML = `<span class="map-light"></span><span><b>L${item.n} · ${item.name}</b><small>${item.key}</small></span>`;
+      button.addEventListener('click', () => { showLayer(item.n); document.getElementById('layerSection').scrollIntoView(); });
+      layerMap.append(button);
+    });
+
+    function showLayer(number, historyMode = 'push') {
+      if (!Number.isInteger(number) || number < 1 || number > 8) number = 8;
+      current = number;
+      const layer = layers.find(candidate => candidate.n === number);
+      if (!layer) return;
+      document.documentElement.style.setProperty('--accent', layer.color);
+      document.documentElement.style.setProperty('--accent-rgb', layer.rgb);
+      window.ManualNavigation.theme(layer.color);
+      document.getElementById('layerTitle').textContent = `L${layer.n} · ${layer.name}`;
+      document.getElementById('layerApps').textContent = layer.apps;
+      document.getElementById('indicatorText').textContent = layer.indicator;
+      document.getElementById('indicatorDot').style.background = layer.lightColor || layer.color;
+
+      [...layerNav.children].forEach((tab, i) => {
+        const selected = orderedLayers[i].n === number;
+        tab.classList.toggle('active', selected);
+        tab.setAttribute('aria-pressed', String(selected));
+      });
+      keyboardGrid.replaceChildren();
+      layer.keys.forEach((key, index) => {
+        const keyNumber = index + 1;
+        const card = document.createElement('div');
+        card.className = 'key' + (keyNumber === layer.keyLight || keyNumber === 12 ? ' special' : '');
+        const taskHold = globalHoldText(keyNumber);
+        card.innerHTML = `<span class="key-number">${keyNumber}</span><span class="key-function">${key[0]}</span><span class="key-detail">${key[1]}</span>${taskHold ? `<span class="task-hold">${taskHold}</span>` : ''}`;
+        card.title = `${positions[index]} · 键${keyNumber}`;
+        keyboardGrid.append(card);
+      });
+
+      encoderList.replaceChildren();
+      layer.enc.forEach(enc => {
+        const item = document.createElement('div');
+        item.className = 'encoder';
+        const [label, ccw, press, cw] = enc;
+        item.innerHTML = `<div class="encoder-head"><span class="encoder-name">${label.split(' · ')[0]}</span><span class="encoder-place">${label.split(' · ')[1]}</span></div>
+          <div class="encoder-actions"><div class="encoder-action"><b>↺ 逆时针</b><span>${ccw}</span></div><div class="encoder-action"><b>● 按下</b><span>${press}</span></div><div class="encoder-action"><b>↻ 顺时针</b><span>${cw}</span></div></div>`;
+        encoderList.append(item);
+      });
+
+      layerNotes.replaceChildren();
+      layerHelp.hidden = layer.notes.length === 0;
+      layerHelp.open = false;
+      layer.notes.forEach((text, i) => {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.innerHTML = `<span class="note-icon">${i ? '↳' : 'i'}</span><span>${text}</span>`;
+        layerNotes.append(note);
+      });
+
+      document.getElementById('keyboardWorkspace').hidden = currentDevice !== 'keyboard';
+      document.getElementById('xboxPanel').hidden = currentDevice !== 'xbox';
+      document.querySelectorAll('[data-device]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.device === currentDevice)));
+      const xboxMappings = document.getElementById('xboxMappings');
+      xboxMappings.replaceChildren();
+      xboxProfiles[String(number)].forEach(mapping => {
+        const row = document.createElement('tr');
+        [mapping.label, mapping.title, mapping.rtTitle].forEach((text, index) => {
+          const cell = document.createElement(index === 0 ? 'th' : 'td');
+          if (index === 0) cell.scope = 'row';
+          cell.textContent = text; row.append(cell);
+        });
+        xboxMappings.append(row);
+      });
+      const xboxNotes = document.getElementById('xboxNotes'); xboxNotes.replaceChildren();
+      [xboxNavigationNotes[number], ...layer.notes].forEach(text => { const note = document.createElement('div'); note.className='note'; note.innerHTML=`<span class="note-icon">i</span><span>${text}</span>`; xboxNotes.append(note); });
+      window.ManualNavigation.write(currentDevice, number, historyMode);
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    searchInput.addEventListener('input', search);
+    document.addEventListener('keydown', event => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault(); searchInput.focus(); searchInput.select();
+      }
+      if (event.key === 'Escape' && document.activeElement === searchInput) { searchInput.value=''; search(); searchInput.blur(); }
+    });
+
+    function search() {
+      const q = searchInput.value.trim().toLowerCase();
+      searchResults.replaceChildren();
+      if (!q) { searchResults.classList.remove('show'); return; }
+      const matches = [];
+      orderedLayers.forEach(layer => {
+        layer.keys.forEach((key, i) => {
+          const taskHold = globalHoldText(i + 1);
+          if (`${key[0]} ${key[1]} ${taskHold}`.toLowerCase().includes(q)) matches.push({layer, device:'keyboard', place:`键${i+1}`, text:taskHold && taskHold.toLowerCase().includes(q) ? taskHold : key[0]});
+        });
+        layer.enc.forEach((enc, i) => { if (enc.join(' ').toLowerCase().includes(q)) matches.push({layer, device:'keyboard', place:`K${i+1}`, text:`${enc[1]} / ${enc[2]} / ${enc[3]}`}); });
+      });
+      orderedLayers.forEach(layer => xboxProfiles[String(layer.n)].forEach(mapping => {
+        if (`Xbox 手柄 ${mapping.label} ${mapping.title} RT ${mapping.rtTitle}`.toLowerCase().includes(q)) matches.push({layer, device:'xbox', place:mapping.label, text:`${mapping.title} / RT：${mapping.rtTitle}`});
+      }));
+      matches.sort((a,b) => Number(b.device === currentDevice) - Number(a.device === currentDevice));
+      matches.slice(0, 14).forEach(match => {
+        const button = document.createElement('button');
+        button.className = 'result';
+        button.innerHTML = `<span class="result-layer">L${match.layer.n}</span><span class="result-position">${match.device==='xbox' ? 'Xbox ' : ''}${match.place}</span><span class="result-function">${match.text}</span>`;
+        button.addEventListener('click', () => { currentDevice=match.device; showLayer(match.layer.n); searchInput.value=''; search(); document.getElementById('layerSection').scrollIntoView(); });
+        searchResults.append(button);
+      });
+      if (!matches.length) {
+        const empty = document.createElement('div'); empty.className='result'; empty.textContent='没有匹配的功能'; searchResults.append(empty);
+      }
+      searchResults.classList.add('show');
+    }
+
+    document.getElementById('printButton').addEventListener('click', () => window.print());
+    window.addEventListener('popstate', () => {
+      const state = window.ManualNavigation.read(location.search);
+      currentDevice = state.device;
+      showLayer(state.layer, 'none');
+      searchInput.value = ''; search();
+    });
+    showLayer(current, 'replace');
+  </script>
+</body>
+</html>

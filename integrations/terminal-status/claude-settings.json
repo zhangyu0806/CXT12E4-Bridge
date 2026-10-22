@@ -1,0 +1,61 @@
+{
+  "theme": "dark",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" idle" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" thinking" }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" waiting" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "permission_prompt|elicitation_dialog",
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" waiting" }
+        ]
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-claude-idle\"" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" completed" }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" error" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" off" }
+        ]
+      }
+    ]
+  }
+}

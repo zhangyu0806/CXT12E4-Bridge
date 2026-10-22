@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" thinking-if-waiting" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" thinking-if-waiting" }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" thinking-if-waiting" }
+        ]
+      }
+    ],
+    "StopCancelled": [
+      {
+        "hooks": [
+          { "type": "command", "command": "\"$HOME/.local/bin/cxt12e4-agent-status\" idle" }
+        ]
+      }
+    ]
+  }
+}

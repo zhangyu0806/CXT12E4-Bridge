@@ -1,0 +1,10 @@
+[Unit]
+Description=Recover broken WSL DrvFS mounts without restarting the distro
+ConditionPathExists=/init
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wsl-drvfs-watchdog
+TimeoutStartSec=60
+Nice=10
+IOSchedulingClass=idle

@@ -1,0 +1,232 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="configuration-revision" content="20261009-attach-existing"><title>Mac tmux / Karabiner · CXT 12E4 使用手册</title><style>
+    :root {
+      --accent: #0078c8;
+      --accent-rgb: 0, 120, 200;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #dfe4ec;
+      --panel: rgba(255, 255, 255, .92);
+      --soft: #f4f6fa;
+      --danger: #d92d20;
+      --shadow: 0 18px 50px rgba(25, 38, 65, .10);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(var(--accent-rgb), .13), transparent 28rem),
+        linear-gradient(180deg, #f7f9fc 0, #eef2f7 100%);
+      font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", system-ui, sans-serif;
+      line-height: 1.55;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+
+    .shell { width: min(1440px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 56px; }
+    .topbar {
+      position: sticky; top: 12px; z-index: 30;
+      display: flex; align-items: center; gap: 16px;
+      padding: 12px 14px; border: 1px solid rgba(255,255,255,.75);
+      border-radius: 18px; background: rgba(255,255,255,.80);
+      box-shadow: 0 10px 30px rgba(30, 44, 70, .08);
+      backdrop-filter: blur(18px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: max-content; }
+    .brand-mark {
+      display: grid; place-items: center; width: 38px; aspect-ratio: 1;
+      border-radius: 12px; color: white; font-weight: 800; letter-spacing: -.04em;
+      background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent), #101828 34%));
+      box-shadow: 0 8px 20px rgba(var(--accent-rgb), .25);
+    }
+    .brand strong { display: block; font-size: 14px; line-height: 1.2; }
+    .brand small { display: block; color: var(--muted); margin-top: 2px; font-size: 11px; }
+    .layer-nav { display: flex; gap: 6px; overflow-x: auto; padding: 2px; scrollbar-width: thin; flex: 1; }
+    .layer-tab {
+      flex: 0 0 auto; min-width: 45px; padding: 8px 11px; border: 1px solid transparent;
+      border-radius: 11px; background: transparent; color: #475467; cursor: pointer; font-weight: 700;
+    }
+    .layer-tab:hover { background: #f2f4f7; }
+    .layer-tab.active {
+      color: #fff; background: var(--accent); border-color: rgba(0,0,0,.05);
+      box-shadow: 0 6px 18px rgba(var(--accent-rgb), .24);
+    }
+    .top-actions { display: flex; gap: 7px; }
+    .icon-button {
+      display: grid; place-items: center; width: 39px; height: 39px;
+      border: 1px solid var(--line); border-radius: 11px; background: #fff; cursor: pointer;
+    }
+    .icon-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .hero {
+      display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(310px, .75fr); gap: 24px;
+      align-items: stretch; padding: 46px 8px 28px;
+    }
+    .eyebrow { color: var(--accent); font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 8px 0 12px; font-size: clamp(34px, 5vw, 64px); line-height: 1.03; letter-spacing: -.045em; }
+    .lead { margin: 0; max-width: 760px; color: #526078; font-size: clamp(16px, 2vw, 20px); }
+    .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .tag { padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.72); color: #475467; font-size: 12px; font-weight: 700; }
+
+    .quick-card, .panel {
+      border: 1px solid rgba(255,255,255,.88); border-radius: 22px;
+      background: var(--panel); box-shadow: var(--shadow);
+    }
+    .quick-card { padding: 20px; }
+    .quick-card h2 { margin: 0 0 13px; font-size: 16px; }
+    .chord { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .chord span { padding: 8px 5px; text-align: center; border-radius: 9px; background: var(--soft); font-size: 12px; font-weight: 800; }
+    .chord b { color: var(--accent); }
+    .quick-note { margin: 13px 0 0; color: var(--muted); font-size: 12px; }
+
+    .search-wrap { position: relative; margin: 4px 0 26px; }
+    .search-wrap input {
+      width: 100%; padding: 15px 46px 15px 48px; border: 1px solid var(--line); border-radius: 15px;
+      background: #fff; color: var(--ink); outline: none; box-shadow: 0 8px 22px rgba(30,44,70,.06);
+    }
+    .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .10); }
+    .search-icon { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); color: #98a2b3; }
+    .search-hint { position: absolute; right: 13px; top: 50%; transform: translateY(-50%); padding: 3px 7px; border: 1px solid var(--line); border-radius: 6px; color: #98a2b3; background: var(--soft); font-size: 11px; }
+    .search-results { display: none; margin-top: 9px; padding: 9px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: var(--shadow); }
+    .search-results.show { display: grid; gap: 5px; }
+    .result {
+      display: grid; grid-template-columns: 74px 68px 1fr; gap: 9px; align-items: center;
+      padding: 9px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer;
+    }
+    .result:hover { background: var(--soft); }
+    .result-layer { font-weight: 800; color: var(--accent); }
+    .result-position { color: var(--muted); font-size: 12px; }
+    .result-function { font-weight: 650; }
+
+    .layer-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 4px 16px; }
+    .layer-heading h2 { margin: 0; font-size: clamp(26px, 3.2vw, 40px); letter-spacing: -.035em; }
+    .layer-heading p { margin: 5px 0 0; color: var(--muted); }
+    .indicator-pill { display: flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; white-space: nowrap; font-size: 12px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .14); }
+
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.38fr) minmax(340px, .62fr); gap: 18px; align-items: start; }
+    .panel { padding: 18px; }
+    .panel-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; }
+    .panel-title h3 { margin: 0; font-size: 15px; }
+    .panel-title small { color: var(--muted); }
+
+    .keyboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .key {
+      position: relative; min-height: 122px; padding: 15px 13px 12px; overflow: hidden;
+      border: 1px solid #dbe1ea; border-radius: 15px; background: linear-gradient(145deg, #fff, #f5f7fa);
+      box-shadow: inset 0 -3px 0 #e6eaf0, 0 5px 12px rgba(28,39,60,.05);
+    }
+    .key::after { content: ""; position: absolute; inset: auto -20% -70% 35%; height: 100%; background: radial-gradient(circle, rgba(var(--accent-rgb),.12), transparent 67%); pointer-events: none; }
+    .key.special { border-color: rgba(var(--accent-rgb), .38); background: linear-gradient(145deg, #fff, rgba(var(--accent-rgb), .08)); }
+    .key.danger { border-color: rgba(217,45,32,.30); }
+    .key-number { display: inline-grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; color: #fff; background: #344054; font-size: 11px; font-weight: 850; }
+    .key.special .key-number { background: var(--accent); }
+    .key.danger .key-number { background: var(--danger); }
+    .key-function { position: relative; z-index: 1; display: block; margin-top: 12px; font-size: 15px; font-weight: 800; line-height: 1.25; }
+    .key-detail { position: relative; z-index: 1; display: block; margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .task-hold { position: relative; z-index: 1; display: inline-block; margin-top: 8px; padding: 4px 7px; border: 1px solid rgba(0,120,200,.24); border-radius: 999px; background: rgba(0,120,200,.08); color: #0069ad; font-size: 10px; font-weight: 750; line-height: 1.2; }
+
+    .encoder-list { display: grid; gap: 10px; }
+    .encoder { padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg,#fff,#f7f8fb); }
+    .encoder-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
+    .encoder-name { font-weight: 850; }
+    .encoder-place { color: var(--muted); font-size: 11px; }
+    .encoder-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .encoder-action { min-width: 0; padding: 8px 5px; border-radius: 9px; background: var(--soft); text-align: center; }
+    .encoder-action b { display: block; color: var(--accent); font-size: 11px; }
+    .encoder-action span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.25; overflow-wrap: anywhere; }
+
+    .notes { display: grid; gap: 9px; margin-top: 18px; }
+    .note { display: flex; gap: 10px; padding: 11px 13px; border-radius: 12px; background: rgba(var(--accent-rgb),.075); color: #475467; font-size: 12px; }
+    .note strong { color: var(--ink); }
+    .note-icon { color: var(--accent); font-weight: 900; }
+    .layer-help { margin-top: 14px; background: rgba(var(--accent-rgb),.035); }
+    .layer-help summary { padding: 11px 13px; color: #475467; font-size: 12px; }
+    .layer-help .notes { margin: 0; padding: 0 10px 10px; }
+
+    .section { margin-top: 24px; }
+    .section-header { margin: 0 4px 13px; }
+    .section-header h2 { margin: 0; font-size: 24px; letter-spacing: -.025em; }
+    .section-header p { margin: 5px 0 0; color: var(--muted); }
+    .status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .status { padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+    .status-light { width: 21px; height: 21px; margin-bottom: 10px; border-radius: 50%; background: var(--status); box-shadow: 0 0 14px color-mix(in srgb, var(--status), transparent 25%); }
+    .status.thinking .status-light { animation: think 1.45s ease-in-out infinite; }
+    .status strong { display: block; font-size: 13px; }
+    .status small { display: block; margin-top: 4px; color: var(--muted); line-height: 1.35; }
+    @keyframes think { 0%,100% { opacity:.35; transform:scale(.78) } 50% { opacity:1; transform:scale(1.08) } }
+
+    .layer-map { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+    .layer-map-item { display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: #fff; cursor: pointer; }
+    .layer-map-item:hover { border-color: var(--map-color); }
+    .map-light { width: 29px; height: 29px; border-radius: 9px; background: var(--map-color); box-shadow: 0 6px 15px color-mix(in srgb, var(--map-color), transparent 70%); }
+    .layer-map-item b { display: block; font-size: 12px; }
+    .layer-map-item small { color: var(--muted); }
+
+    details { border: 1px solid var(--line); border-radius: 15px; background: #fff; overflow: hidden; }
+    details + details { margin-top: 10px; }
+    summary { padding: 14px 16px; cursor: pointer; font-weight: 800; }
+    .detail-body { padding: 0 16px 16px; color: #475467; font-size: 13px; }
+    .detail-body ul { margin: 4px 0; padding-left: 20px; }
+    .detail-body li + li { margin-top: 5px; }
+    code, kbd { padding: 2px 6px; border: 1px solid #d0d5dd; border-radius: 6px; background: #f2f4f7; font-family: Consolas, monospace; font-size: .9em; }
+
+    footer { margin-top: 30px; padding: 18px 4px 0; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 1020px) {
+      .hero, .workspace { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: repeat(3, 1fr); }
+      .layer-map { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1440px); padding-top: 10px; }
+      .topbar { top: 7px; border-radius: 14px; }
+      .brand small, .top-actions { display: none; }
+      .hero { padding-top: 30px; }
+      .quick-card { padding: 15px; }
+      .keyboard-grid { gap: 7px; }
+      .key { min-height: 116px; padding: 11px 9px; border-radius: 12px; }
+      .key-function { font-size: 13px; }
+      .key-detail { font-size: 10px; }
+      .panel { padding: 11px; border-radius: 17px; }
+      .status-grid { grid-template-columns: 1fr 1fr; }
+      .layer-heading { align-items: start; flex-direction: column; }
+      .result { grid-template-columns: 60px 55px 1fr; }
+    }
+    @media (max-width: 430px) {
+      .brand strong { font-size: 12px; }
+      .brand-mark { width: 34px; }
+      .layer-tab { min-width: 41px; padding-inline: 9px; }
+      .key { min-height: 106px; }
+      .key-function { font-size: 12px; }
+      .encoder-actions { grid-template-columns: 1fr; }
+      .layer-map { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: #fff; }
+      .shell { width: 100%; padding: 0; }
+      .topbar, .search-wrap, .top-actions { display: none !important; }
+      .hero { padding: 0 0 18px; grid-template-columns: 1fr; }
+      .quick-card { box-shadow: none; }
+      .panel, .quick-card { box-shadow: none; border-color: #bbb; break-inside: avoid; }
+      .workspace { grid-template-columns: 1.35fr .65fr; }
+      .key { box-shadow: none; min-height: 102px; }
+      .section { break-before: auto; }
+      footer { break-before: avoid; }
+    }
+
+.shortcut-table{width:100%;border-collapse:collapse}.shortcut-table th,.shortcut-table td{padding:13px 16px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.shortcut-table th{width:27%}.shortcut-table tr:last-child>*{border-bottom:0}.table-panel{overflow:hidden}.detail-body code{overflow-wrap:anywhere}a{color:var(--accent)}
+</style><link rel="stylesheet" href="../manual-navigation.css?v=20261019-shortcuts">
+</head><body data-manual-page="tmux"><div class="shell"><nav class="topbar" aria-label="说明导航"><div class="brand"><span class="brand-mark">12E4</span><span><strong>CXT 功能手册</strong><small>tmux · Karabiner · Ghostty</small></span></div><div class="layer-nav"><a class="layer-tab" href="./?device=keyboard&amp;layer=2">L2 键盘操作</a></div><div class="top-actions"><button class="icon-button" id="printButton" aria-label="打印" title="打印或另存为 PDF">⌁</button></div></nav><nav class="platform-nav" aria-label="平台说明">
+      <a data-manual-page="windows" data-manual-base="../" href="../">Windows 键盘 / 手柄</a>
+      <a data-manual-page="mac" data-manual-base="./" href="./">Mac 键盘 / 手柄</a>
+      <a data-manual-page="tmux" data-manual-base="tmux.html" href="tmux.html" aria-current="page">tmux / Karabiner</a>
+      <a data-manual-page="shortcuts" data-manual-base="shortcuts.html" href="shortcuts.html">快捷键总表</a>
+    </nav><header class="hero"><div><div class="eyebrow">Personal Control Surface</div><h1>Mac tmux<br>接着用熟悉的键位</h1><p class="lead">使用 winsettings 共享配置与 CXT12E4 的 Mac 适配。保留 Karabiner 的编辑与应用启动习惯，Ghostty 负责把 Option 快捷键交给 tmux。</p><div class="hero-tags"><span class="tag">Caps+S 前缀</span><span class="tag">Option 方向键切 pane</span><span class="tag">12E4 Bridge 继续可用</span><span class="tag">旧配置已备份</span></div></div><aside class="quick-card"><h2>三步开始</h2><div class="notes"><div class="note"><span class="note-icon">1</span><span>按 Caps+S，松开两键。</span></div><div class="note"><span class="note-icon">2</span><span>按 j 向下分屏；按 % 向右分屏。</span></div><div class="note"><span class="note-icon">3</span><span>Option+实际方向键切换面板。</span></div></div><p class="quick-note">Ctrl+S 也可作为前缀。原 Alt+H/J/K/L 仍用于文字编辑。</p></aside></header><div class="search-wrap"><span class="search-icon">⌕</span><input id="searchInput" type="search" placeholder="搜索快捷键，例如：分屏、会话、复制、前缀……" aria-label="搜索快捷键"><span class="search-hint">⌘ K</span></div><section class="section"><div class="section-header"><h2>普通键盘快捷键</h2><p>前缀 → 按键：先按 Caps+S 或 Ctrl+S，松开，再按后续键。</p></div><article class="panel table-panel"><table class="shortcut-table"><tr><th>连接已有会话</th><td>在终端输入 <code>tmux</code>，连接已有工作区。没有运行会话时，现有恢复脚本可能恢复保存的工作区；需要明确新建时输入 <code>tmux new</code>。</td></tr><tr><th>前缀键</th><td>Ctrl+S；现有 Karabiner 在 Ghostty 中把 Caps 映射为 Ctrl，也可用 Caps+S。按下后松开，再按后续键。</td></tr><tr><th>上下分屏</th><td>前缀 → j 向下分屏；前缀 → k 向上分屏。</td></tr><tr><th>左右分屏</th><td>前缀 → h 向左分屏；前缀 → % 向右分屏。</td></tr><tr><th>移动到相邻面板</th><td>Option + 实际方向键 ← ↓ ↑ →。</td></tr><tr><th>切换相邻面板</th><td>Option+[ / Option+]。</td></tr><tr><th>调整面板大小</th><td>Option+Shift+H/J/K/L；也可用前缀 → Option+实际方向键调整大小。</td></tr><tr><th>关闭当前面板</th><td>Option+Shift+Q。关闭窗口内最后一个面板时，窗口结束；关闭会话内最后一个窗口时，会话结束。</td></tr><tr><th>放大 / 恢复面板</th><td>Option+F（不按 Shift）。</td></tr><tr><th>切换双面板布局</th><td>前缀 → 空格；仅在恰好两个面板时生效。</td></tr><tr><th>新窗口</th><td>Option+O（不按 Shift），或前缀 → c。在当前会话中创建窗口，并沿用当前面板目录。</td></tr><tr><th>面板移到独立窗口</th><td>Option+Shift+O，把当前面板移出并建立独立窗口。</td></tr><tr><th>面板合并到指定窗口</th><td>Option+Shift+1…9，把当前面板合并到对应编号的窗口。</td></tr><tr><th>切换窗口</th><td>Option+1…9；T90 左 Alt+9 保留鼠标左键点击；窗口 9 可用前缀 → w 在窗口树选择。</td></tr><tr><th>新会话</th><td>在终端输入 <code>tmux new</code>，或在 tmux 中按 Option+Shift+S。可用前缀 → . 命名，永久会话自动按 NN-label 编号。</td></tr><tr><th>切换会话</th><td>F1…F10；F12 切第 11 个已有会话。T90 在 Ghostty / Terminal 已适配 F 键直通；F11 保留应用原生全屏。12E4 的长按切换继续可用。</td></tr><tr><th>调整会话顺序</th><td>前缀 → l 向左移动会话；前缀 → y 向右移动。这是完整 shared.conf 的原有覆盖规则。</td></tr><tr><th>复制模式</th><td>Option+V（不按 Shift）进入；v 开始选择；h/j/k/l 移动；y 复制到 Mac 剪贴板并退出。</td></tr><tr><th>粘贴</th><td>Ctrl+V、Ctrl+Shift+V 或 Option+Shift+V；使用现有 Caps→Ctrl 规则时，也可 Caps+V。复制模式中用 Ctrl+Shift+V 或 Option+Shift+V 退出并粘贴；Ctrl+V 保留矩形选择功能。</td></tr><tr><th>Agent 退出 / 重启</th><td>Agent 退出后回到默认 shell。前缀 → Shift+R 重新启动该面板记录的 Agent；从手动快照恢复的 Agent 也支持此操作。</td></tr><tr><th>保存 / 恢复布局</th><td>Option+Shift+T 保存；Option+Shift+R 恢复快照。当前配置也可能在没有运行会话时恢复已有工作区；实际按恢复保护规则执行，不保证续接旧 AI 对话。</td></tr><tr><th>重载 tmux</th><td>前缀 → r。</td></tr><tr><th>重载 Ghostty</th><td>⌘+Shift+,。在新 Mac 安装适配后，用它加载 Option 按键设置。</td></tr></table></article><p id="empty" hidden>没有匹配的快捷键。</p></section><section class="section"><div class="section-header"><h2>配置与使用说明</h2><p>与你原来的 Karabiner 规则配合使用。</p></div><details><summary>你原有的键盘习惯</summary><div class="detail-body"><p>T90 左 Alt+H/J/K/L 继续作为普通方向键，用于编辑文字；左 Alt+9/0 继续用于鼠标点击。切 tmux 面板用 Option+实际方向键。Caps/Fn 数字启动应用、物理 Win 键和 12E4 设备专用规则保持原样。</p></div></details>
+<details><summary>本次同步内容</summary><div class="detail-body"><ul><li>winsettings 核心配置、shared.conf 的会话管理、portable profile，以及已安装的三个固定版本插件。</li><li>CXT12E4 的 Mac 适配负责新窗口、Agent 退出后的 shell 恢复和手动重启，并补齐本机布局恢复使用的 Agent 白名单。</li><li>直接输入 <code>tmux</code> 默认连接已有会话，不再额外创建数字会话。新默认已对当前终端立即生效，无需重开 shell。没有现有会话时使用 <code>tmux new</code> 明确新建；自动恢复和开机启动仍关闭。</li><li>为 tmux 提供 Bash 5、Python 3.12、fzf 和 GNU 工具；本机适配层处理 Darwin 的进程年龄及子进程查询。</li><li>安装脚本给 Ghostty 添加受管配置：开启 Option→Meta，取消 Option+左右方向键的词移动绑定，让 tmux 接收方向键。</li><li>Mac 快捷键适配补齐 Ghostty 扩展按键编码下的 Shift 组合。Option+O 使用本机会话上下文新建窗口，避免旧目标表达式导致创建失败。</li><li>已关闭微信输入法 WeType 的 Option+Shift+H 全半角切换快捷键，解除对 tmux 调整面板大小的占用。</li><li>已有会话加入保护名单，避免被数字临时会话清理规则删除；共享编号逻辑可能调整显示名称，会话本身继续保留。</li></ul></div></details>
+<details><summary>配置与备份位置</summary><div class="detail-body"><ul><li>共享配置来源：<code>~/code/winsettings</code>。Mac 通用适配来源：CXT12E4 仓库的 <code>integrations/tmux/macos/</code>，可在其他 Mac 重新安装。</li><li>入口：<code>~/.tmux.conf → ~/code/winsettings/tmux/tmux.conf</code>。</li><li>本机配置：<code>~/.config/tmux/local.conf</code>，安装时保留用户内容并追加受管配置入口。</li><li>Mac 适配：<code>~/.config/tmux/macos/</code>；辅助工具：<code>~/.config/tmux/macos-bin/</code>。</li><li>快捷键兼容：<code>~/.config/tmux/macos-keys.conf</code>，补齐扩展编码下的 Option+Shift 组合及 Ctrl+Shift+V，并兼容复制模式中的粘贴。</li><li>Ghostty：<code>~/Library/Application Support/com.mitchellh.ghostty/config.ghostty</code>。</li><li>同步前的 tmux 入口、本机配置、Ghostty、Karabiner 备份：<code>~/.local/state/tmux-macos-backups/20261008-155143</code>。</li><li>适配安装备份：<code>~/.local/state/tmux-macos-backups/&lt;timestamp&gt;-setup/</code>。</li><li>原来的 <code>~/code/tmux-portable</code> 和本地兼容性提交保留。</li></ul></div></details>
+<details><summary>在其他 Mac 重建</summary><div class="detail-body"><p>准备本地 winsettings 仓库。适配要求 tmux、Bash 4 及以上、Python 3.10 及以上、GNU coreutils / findutils 和 fzf；本机使用 Bash 5、Python 3.12 验证。建议安装 Homebrew 当前版本，再复用 winsettings 的固定版本插件安装流程：</p><p><code>brew install tmux bash python coreutils findutils fzf</code></p><p><code>bash /path/to/winsettings/tmux/install.sh --apply --plugins</code></p><p>在 CXT12E4 仓库先预览；未带 <code>--apply</code> 时只检查和生成计划：</p><p><code>python3 install/macos/setup_tmux.py --winsettings /path/to/winsettings</code></p><p><code>python3 install/macos/setup_tmux.py --apply --reload --winsettings /path/to/winsettings</code></p><p>安装保留 local.conf 用户内容并添加受管入口，备份被修改的文件。自定义 tmux 入口未加载 local.conf，或已有 winsettings 链接指向其他来源时，安装会拒绝覆盖。Bridge 安装脚本自动尝试此流程：找不到仓库时提示跳过；找到仓库但缺依赖或固定插件时明确报错，此时已有 Bridge 仍在运行。</p><p>此前只保存在本机的快捷键和进程工具现由仓库模板提供。自定义保存策略规范记录三种 Agent 名称，恢复策略在对应面板先登记 Agent 再执行，支持后续退出回 shell 和 Shift+R 重启。两种策略均不修改上游插件源码；手动恢复只启动本机可用的程序，缺少程序时回到 shell。私有设置及会话快照仍各自保留；没有启用自动跨机发布会话状态。新 Mac 安装后，用 ⌘+Shift+, 加载 Ghostty 配置，并检查 WeType 的 Option+Shift+H 是否被全半角切换占用。</p></div></details>
+<details><summary>验证结果</summary><div class="detail-body"><p>以下是维护者特定版本与配置的历史记录。新环境应重新确认依赖、输入法冲突和物理按键，不将自动检查视为所有设备都已验收。</p><p>2026-10-08 首轮快捷键修复：22 条兼容绑定与原命令逐条核对；隔离终端的 74 项按键协议检查通过，覆盖前缀、F 键、窗口与面板操作及复制模式粘贴的按键识别，并验证关闭最后一个面板会结束会话。Ghostty 原生按键探针已验证 Option+Shift+Q 等组合，H 已通过 tmux 按键协议检查。WeType 设置界面及本地保存值均确认已关闭全半角切换快捷键；关闭后尚未重测 H 从 Ghostty 到 tmux 的完整输入链路。该轮热加载保留了现有面板及其进程。2026-10-08 另有 74 项自动检查全部通过，覆盖新窗口动作、Agent 生命周期、保存与完整恢复、恢复命令生成及安装配置。隔离测试验证三种 Agent 保存后恢复均完成登记，Claude 退出回 shell 后可用前缀 → Shift+R 重启；缺少 Agent 时回到 shell，原有保留面板进程不变。10 月 8 日适配安装及热加载时，当时的 10 个面板 ID 和进程 ID 全部保留；重复安装无文件变更。运行配置中的新窗口、重启与退出处理均已生效，Ghostty 配置校验通过。新快照正确记录 5 个 Agent 的可执行名称。该次 Bridge 更新后输入通道、系统授权和固件识别正常，识别到 6 个会话灯位。</p><p>2026-10-09：累计 78 项自动检查通过；新增 4 项真实终端测试确认，连续运行 <code>tmux</code> 不增加会话，冷启动或空服务器均不隐式新建，显式 <code>tmux new</code> 仍可创建。默认连接策略已热加载，重复安装无文件变更。热加载验证保留了已有会话和面板进程。</p><p>归档 86 个文件验证通过；原有面板助手、fzf 面板和会话管理测试通过。独立 tmux 服务验证完整配置加载、运行时、分屏、布局切换和会话编号。Ghostty 临时测试终端实际捕获了 Ctrl+S（13）、Option+左（1b5b313b3344）及 Option+右（1b5b313b3343），测试终端已关闭。已有面板在配置热加载后继续运行；12E4 Bridge 的 tmux 会话切换功能继续保留。</p><p>GitHub 配置同步与会话布局恢复分别进行。恢复布局会重建会话和面板，并启动本机可用的程序；另一台机器正在运行的进程和未入库的私有 local.conf 不会随之迁移。</p></div></details></section><footer><span>CXT 12E4 · Mac tmux / Karabiner</span><span>快捷键复核：2026-10-19 · 配置源：winsettings / 本机适配</span></footer></div><script src="../manual-navigation.js?v=20261022-domain"></script>
+<script>const input=document.getElementById('searchInput');const rows=[...document.querySelectorAll('.shortcut-table tr')];input.addEventListener('input',()=>{let n=0;for(const row of rows){row.hidden=!row.textContent.toLowerCase().includes(input.value.trim().toLowerCase());if(!row.hidden)n++;}document.getElementById('empty').hidden=n>0;});document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();input.focus();}if(e.key==='Escape'){input.value='';input.dispatchEvent(new Event('input'));input.blur();}});document.getElementById('printButton').addEventListener('click',()=>window.print());</script></body></html>

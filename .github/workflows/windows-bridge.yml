@@ -1,0 +1,104 @@
+name: Windows Bridge
+
+on:
+  pull_request:
+    paths:
+      - 'src/Cxt1024Bridge/**'
+      - 'build.ps1'
+      - 'install/windows-home/**'
+      - 'install/wsl-home/**'
+      - 'integrations/**'
+      - 'docs/cxt12e4-manual/**'
+      - 'README-CXT12E4.md'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'firmware/cxt12e4_chatgpt_bridge/LICENSE'
+      - '.github/workflows/windows-bridge.yml'
+  push:
+    branches: [main, codex/macos-bridge]
+    paths:
+      - 'src/Cxt1024Bridge/**'
+      - 'build.ps1'
+      - 'install/windows-home/**'
+      - 'install/wsl-home/**'
+      - 'integrations/**'
+      - 'docs/cxt12e4-manual/**'
+      - 'README-CXT12E4.md'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'firmware/cxt12e4_chatgpt_bridge/LICENSE'
+      - '.github/workflows/windows-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-bridge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build console executable
+        run: .\build.ps1
+      - name: Run pure self-tests
+        run: |
+          & .\outputs\Cxt12E4Bridge.exe --self-test | Tee-Object -FilePath .\outputs\windows-self-test.txt
+          if ($LASTEXITCODE -ne 0) { throw "Bridge self-test failed: $LASTEXITCODE" }
+      - name: Verify prepare-only installation
+        run: |
+          .\install\windows-home\Install-Cxt12E4Bridge.ps1 -PrepareOnly -InstallDirectory "$env:RUNNER_TEMP\Cxt12E4Bridge-Prepared"
+          if (-not (Test-Path "$env:RUNNER_TEMP\Cxt12E4Bridge-Prepared\Cxt12E4Bridge.exe")) { throw 'Prepared executable is missing' }
+          $prepared = Get-Content "$env:RUNNER_TEMP\Cxt12E4Bridge-Prepared\install-manifest.json" -Raw | ConvertFrom-Json
+          if (-not $prepared.prepareOnly -or $prepared.started -or $prepared.watchdogStarted -or $prepared.autoStart -or $prepared.scheduledTask -or $prepared.wslIntegrations) { throw 'Prepare-only boundary was not preserved' }
+          if ($prepared.sha256 -ne (Get-FileHash outputs\Cxt12E4Bridge.exe -Algorithm SHA256).Hash) { throw 'Prepared binary hash differs from build output' }
+      - name: Package source, installer and verified binary
+        run: |
+          $package = Join-Path $env:RUNNER_TEMP 'CXT12E4-Windows'
+          New-Item -ItemType Directory -Force -Path "$package\src", "$package\install", "$package\docs", "$package\outputs" | Out-Null
+          Copy-Item build.ps1, README.md, README-CXT12E4.md, CONTRIBUTING.md, LICENSE, THIRD_PARTY_NOTICES.md -Destination $package
+          New-Item -ItemType Directory -Force -Path "$package\firmware\cxt12e4_chatgpt_bridge" | Out-Null
+          Copy-Item firmware\cxt12e4_chatgpt_bridge\LICENSE -Destination "$package\firmware\cxt12e4_chatgpt_bridge"
+          Copy-Item src\Cxt1024Bridge -Destination "$package\src" -Recurse
+          Copy-Item install\windows-home, install\wsl-home -Destination "$package\install" -Recurse
+          Copy-Item integrations -Destination $package -Recurse
+          Copy-Item docs\cxt12e4-manual -Destination "$package\docs" -Recurse
+          Copy-Item outputs\Cxt12E4Bridge.exe, outputs\Cxt1024Bridge.exe, outputs\windows-self-test.txt -Destination "$package\outputs"
+          @{
+            commit = '${{ github.sha }}'
+            executableSha256 = (Get-FileHash outputs\Cxt12E4Bridge.exe -Algorithm SHA256).Hash
+            validation = 'Built and self-tested on Windows; no HID writes, firmware flashing, application control or physical controller acceptance.'
+          } | ConvertTo-Json | Set-Content "$package\build-manifest.json" -Encoding UTF8
+          Compress-Archive -Path "$package\*" -DestinationPath outputs\CXT12E4-Windows.zip
+      - name: Verify installation from extracted ZIP
+        run: |
+          $extracted = Join-Path $env:RUNNER_TEMP 'CXT12E4-Extracted-Package'
+          Expand-Archive -LiteralPath outputs\CXT12E4-Windows.zip -DestinationPath $extracted
+          & "$extracted\install\windows-home\Install-Cxt12E4Bridge.ps1" -PrepareOnly -InstallDirectory "$env:RUNNER_TEMP\CXT12E4-Package-Prepared"
+          $prepared = Get-Content "$env:RUNNER_TEMP\CXT12E4-Package-Prepared\install-manifest.json" -Raw | ConvertFrom-Json
+          if (-not $prepared.prepareOnly -or $prepared.started -or $prepared.autoStart -or $prepared.scheduledTask) { throw 'Extracted package prepare-only check failed' }
+          if (-not (Test-Path "$env:RUNNER_TEMP\CXT12E4-Package-Prepared\Cxt12E4Bridge.exe")) { throw 'Extracted package executable was not prepared' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CXT12E4-Windows-${{ github.sha }}
+          path: outputs/CXT12E4-Windows.zip
+          if-no-files-found: error
+          retention-days: 30
+      - name: Keep diagnostic output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Bridge-diagnostics-${{ github.sha }}
+          path: outputs/windows-self-test.txt
+          if-no-files-found: ignore

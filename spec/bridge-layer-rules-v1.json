@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "kbt": {
+    "required": false,
+    "downloadedPackageValidated": true,
+    "installed": false,
+    "autoLayerEnabled": false
+  },
+  "codexIntegration": {
+    "catalogPrimary": "official-codex-app-server-thread-list-over-stdio-jsonl",
+    "catalogFallback": "read-only-local-state-database-with-30-second-retry",
+    "liveTaskState": "shared-rollout-event-log-because-independent-app-server-sees-desktop-threads-as-notLoaded",
+    "desktopActions": "retain-codex-deep-links-ui-automation-and-keyboard-shortcuts",
+    "writeScope": "read-only-no-thread-start-resume-fork-interrupt-or-mutation",
+    "diagnosticCommand": "--codex-app-server-probe"
+  },
+  "layerController": {
+    "owner": "Bridge.exe",
+    "fallbackLayer": 0,
+    "manualOverride": {
+      "directSelection": "tray-menu-L0-to-L7",
+      "releaseOn": "foreground-window-change"
+    }
+  },
+  "key12StateMachine": {
+    "shortTap": "dispatch-current-layer-tap-action-on-release",
+    "longPressThresholdMs": 650,
+    "longPressRelease": "switch-live-tmux-session-slot-4-if-no-chord-was-used",
+    "taskbarChord": {
+      "keys1To9": "send-Win-plus-the-same-number",
+      "key10": "send-Win-plus-0-for-taskbar-slot-10",
+      "key11": "invoke-taskbar-slot-11-directly"
+    },
+    "chordPriority": "the-first-eligible-selector-owns-the-chord; additional-selectors-are-suppressed-without-overwriting-the-owner; dispatch-Win-shortcut-only-after-both-owner-keys-are-released",
+    "contextGuard": "prefix-foreground-layer-and-context-generation-must-remain-unchanged; selector-after-the-650ms-long-action-fired-cannot-create-a-second-chord",
+    "layer7Tap": "no-action; Typeless Right Alt is used on the main keyboard"
+  },
+  "key4Layer1Prefix": {
+    "enabled": false,
+    "tap": "invoke-latest-visible-continue-in-new-chat-from-here",
+    "result": "fork-current-task-context-into-a-new-task",
+    "chords": "removed",
+    "hold": "global-tmux-session-slot-6"
+  },
+  "globalTaskHold": {
+    "layers": [0, 1, 2, 3, 4, 5, 6, 7],
+    "keys": [1, 2, 3, 5, 6, 7],
+    "slots": [1, 2, 3, 4, 5, 6],
+    "holdThresholdMs": 650,
+    "shortTap": "dispatch-current-layer-action",
+    "hold": "switch-task-and-focus-chatgpt",
+    "contextGuard": "cancel-if-foreground-window-title-layer-or-context-generation-changed-since-key-down"
+  },
+  "globalTmuxSessionHold": {
+    "layers": [0, 1, 2, 3, 4, 5, 6, 7],
+    "keys": [9, 10, 11, 12, 8, 4],
+    "slots": [1, 2, 3, 4, 5, 6],
+    "holdThresholdMs": 650,
+    "shortTap": "dispatch-current-layer-action",
+    "hold": "switch-most-recently-active-tmux-client-to-the-matching-live-session-and-focus-the-last-observed-windows-terminal-window",
+    "absentSlot": "no-switch-and-no-focus",
+    "inventoryFailure": "all-session-leds-off-until-next-successful-live-inventory-read",
+    "contextGuard": "cancel-if-foreground-window-layer-or-context-generation-changed-since-key-down"
+  },
+  "encoderDirection": {
+    "counterClockwise": ["up", "left", "previous", "back", "decrease"],
+    "clockwise": ["down", "right", "next", "forward", "increase"]
+  },
+  "layerIndicators": {
+    "hardwareScope": "custom-qmk-rgb-matrix",
+    "perKeyRgbAvailable": true,
+    "taskLedsVisibleOnEveryLayer": true,
+    "tmuxLedsVisibleOnEveryLayer": true,
+    "0": { "displayLayer": 8, "requestedKey": 8, "color": "#7088B8", "name": "slate-blue-double-flash", "steady": false, "restores": "tmux-session-05-status" },
+    "1": { "displayLayer": 1, "requestedKey": 1, "color": "#C000C8", "name": "purple-red-double-flash", "steady": false, "restores": "chatgpt-task-01-status" },
+    "2": { "displayLayer": 2, "requestedKey": 2, "color": "#FF1464", "name": "pink-double-flash", "steady": false, "restores": "chatgpt-task-02-status" },
+    "3": { "displayLayer": 3, "requestedKey": 3, "color": "#FF6000", "name": "orange-double-flash", "steady": false, "restores": "chatgpt-task-03-status" },
+    "4": { "displayLayer": 4, "requestedKey": 4, "color": "#8000FF", "name": "purple-double-flash", "steady": false, "restores": "tmux-session-06-status" },
+    "5": { "displayLayer": 5, "requestedKey": 5, "color": "#FFDC00", "name": "gold-double-flash", "application": "Browsers", "steady": false, "restores": "chatgpt-task-04-status" },
+    "6": { "displayLayer": 6, "requestedKey": 6, "color": "#00C8FF", "name": "ice-blue-double-flash", "application": "Total Commander", "steady": false, "restores": "chatgpt-task-05-status" },
+    "7": { "displayLayer": 7, "requestedKey": 7, "color": "#00FF00", "name": "green-double-flash", "application": "Messaging", "steady": false, "restores": "chatgpt-task-06-status" }
+  },
+  "terminalSessionLights": {
+    "layers": [0, 1, 2, 3, 4, 5, 6, 7],
+    "sessionNamePrefixes": ["01", "02", "03", "04", "05", "06"],
+    "physicalKeys": [9, 10, 11, 12, 8, 4],
+    "states": ["off", "idle-white", "thinking-deep-blue-animation", "completed-deep-green", "waiting-amber", "error-red"],
+    "completionAcknowledgement": "a newly completed session latches deep green; a successful CXT hold acknowledges completion at its pre-switch revision cutoff; external tmux client mapping changes do not acknowledge because polling cannot prove event order; historical completed files start acknowledged after Bridge restart",
+    "eventOrdering": "CXT holds capture the pre-switch cutoff inside WSL in the same clock domain as agent reports and acknowledge only completionRevision <= cutoff; a later completion remains green; external tmux switching is intentionally not an acknowledgement source",
+    "sessionIdentity": "track tmux session_id + session_created + server pid generation; duplicate numeric-prefix sessions fail closed for both lighting and switching",
+    "aggregatePriority": ["error", "waiting", "thinking", "completed", "idle"],
+    "sources": ["live-tmux-pane-session-inventory", "OpenCode-global-plugin", "Claude-Code-hooks", "Grok-compatible-hooks"],
+    "staleStateGuard": "accept-agent-state-only-when pane-id, session-name, session-id, session-created and server-pid match the live tmux inventory; legacy four-field reports are accepted only when their timestamp is not older than session creation",
+    "claudeInterruptRecovery": "Claude Stop is not emitted for user interruption; a Claude-snake-case-only idle_prompt filter restores idle without clearing Grok completion"
+  },
+  "foregroundRules": [
+    {
+      "layer": 1,
+      "name": "ChatGPT",
+      "processNames": ["ChatGPT.exe"]
+    },
+    {
+      "layer": 2,
+      "name": "Terminal-tmux",
+      "processNames": ["WindowsTerminal.exe"],
+      "manualOverrideRecommended": true,
+      "reason": "The Windows Terminal process cannot prove that the active tab is running tmux."
+    },
+    {
+      "layer": 3,
+      "name": "Notion",
+      "processNames": ["Notion.exe"]
+    },
+    {
+      "layer": 4,
+      "name": "Obsidian",
+      "processNames": ["Obsidian.exe"]
+    },
+    {
+      "layer": 5,
+      "name": "Browsers",
+      "processNames": [
+        "msedge.exe",
+        "chrome.exe",
+        "vivaldi.exe",
+        "brave.exe",
+        "Arc.exe",
+        "Browser Pro+.exe",
+        "O-browser.exe"
+      ],
+      "packageAppIds": [
+        "60191FreshJuice.PhoenixSearch_q548gb32m7ptt!App"
+      ],
+      "perProcessShortcutTranslation": false,
+      "compatibilityNote": "generic Chromium-style shortcuts only; each listed browser still requires real-app verification"
+    },
+    {
+      "layer": 6,
+      "name": "Total Commander",
+      "processNames": ["TOTALCMD64.EXE", "TOTALCMD.EXE"]
+    },
+    {
+      "layer": 7,
+      "name": "Messaging",
+      "processNames": ["Weixin.exe", "WeChatAppEx.exe", "Telegram.exe", "QQ.exe"],
+      "perProcessShortcutTranslation": false,
+      "compatibilityNote": "generic messaging shortcuts only; Weixin/WeChat/Telegram/QQ parity is not yet implemented or verified; key7 reply is unassigned because Ctrl+R can start Telegram recording"
+    }
+  ]
+}

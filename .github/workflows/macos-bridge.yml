@@ -1,0 +1,45 @@
+name: macOS Bridge
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-bridge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build, self-test and verify the app signature
+        run: bash install/macos/build.sh
+      - name: Check helpers without installing
+        run: |
+          python3 -m unittest discover -s src/Cxt12E4Mac -p 'test_*.py'
+          python3 -m unittest discover -s integrations/tmux/macos -p 'test_*.py'
+          python3 tests/test_integration_portability.py
+      - name: Check manual navigation and keyboard tables
+        run: |
+          node tests/manual-navigation.test.js
+          node tests/layer-profile-manual.test.js
+      - name: Package the app with its bundled manuals and licenses
+        run: |
+          test -f 'outputs/CXT12E4 Bridge.app/Contents/Resources/LICENSE'
+          test -f 'outputs/CXT12E4 Bridge.app/Contents/Resources/THIRD_PARTY_NOTICES.md'
+          ditto -c -k --keepParent 'outputs/CXT12E4 Bridge.app' outputs/CXT12E4-Mac.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CXT12E4-Mac-${{ github.sha }}
+          path: outputs/CXT12E4-Mac.zip
+          if-no-files-found: error

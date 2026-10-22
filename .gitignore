@@ -1,0 +1,53 @@
+# Local build and runtime material
+/artifacts/
+/backups/
+/outputs/
+/work/
+/.superpowers/
+
+# Generated review packages and isolated snapshots
+docs/reviews/**/baseline-for-diff/
+docs/reviews/**/isolated-*/
+docs/reviews/**/package-*/
+*.zip
+
+# Build outputs and caches
+bin/
+obj/
+node_modules/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.vs/
+*.exe
+*.dll
+*.pdb
+*.hex
+*.uf2
+*.bin
+*.log
+*.err
+*.pid
+
+# Credentials and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.key
+credentials.json
+secrets.json
+hosts.yml
+
+# Editor and OS noise
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Private operational records are kept outside the public repository.
+/audit/
+/docs/reviews/
