@@ -6,23 +6,36 @@ const assert = require('node:assert/strict');
 
 const source = fs.readFileSync(path.join(__dirname, '../docs/cxt12e4-manual/manual-navigation.js'), 'utf8');
 const pages = {
-  windows: { path: '/cxt12e4/', bases: ['./', 'mac/', 'mac/tmux.html', 'mac/shortcuts.html'] },
-  mac: { path: '/cxt12e4/mac/', bases: ['../', './', 'tmux.html', 'shortcuts.html'] },
-  tmux: { path: '/cxt12e4/mac/tmux.html', bases: ['../', './', 'tmux.html', 'shortcuts.html'] },
-  shortcuts: { path: '/cxt12e4/mac/shortcuts.html', bases: ['../', './', 'tmux.html', 'shortcuts.html'] }
+  windows: { path: 'index.html', platform: 'windows', root: './', category: 'device' },
+  mac: { path: 'mac/index.html', platform: 'mac', root: '../', category: 'device' },
+  tmux: { path: 'mac/tmux.html', platform: 'mac', root: '../', category: 'shortcuts' },
+  shortcuts: { path: 'mac/shortcuts.html', platform: 'mac', root: '../', category: 'shortcuts' },
+  'windows-shortcuts': { path: 'shortcuts.html', platform: 'windows', root: './', category: 'shortcuts' }
 };
+const platforms = ['windows', 'mac'];
+const sections = ['keyboard', 'xbox', 'shortcuts'];
+const relativePath = (platform, category) => (platform === 'mac' ? 'mac/' : '') + (category === 'shortcuts' ? 'shortcuts.html' : 'index.html');
 
 function load(page, search = '', href) {
-  const links = Object.keys(pages).map((name, i) => ({
-    dataset: { manualPage: name, manualBase: pages[page].bases[i] },
-    target: '', attributes: {}, href: '', events: {},
-    addEventListener(name, callback) { this.events[name] = callback; },
-    hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
-  }));
-  const location = { href: href || 'http://localhost' + pages[page].path + search };
+  const definition = pages[page];
+  const location = { href: href || 'http://localhost/cxt12e4/' + definition.path + search };
   Object.defineProperty(location, 'search', { get() { return new URL(this.href).search; } });
-  const calls = [];
-  const entries = [location.href];
+  function anchor(dataset, fallback) {
+    return {
+      dataset, target: '', attributes: { href: fallback }, events: {},
+      get href() { return new URL(this.attributes.href, location.href).href; },
+      set href(value) { this.attributes.href = String(value); },
+      addEventListener(name, callback) { this.events[name] = callback; },
+      hasAttribute(name) { return Object.hasOwn(this.attributes, name); },
+      getAttribute(name) { return this.attributes[name] ?? null; },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; }
+    };
+  }
+  const platformLinks = platforms.map(name => anchor({ manualPlatform: name }, definition.root + relativePath(name, definition.category)));
+  const sectionLinks = sections.map(name => anchor({ manualSection: name }, definition.root + relativePath(definition.platform, name) + (name === 'shortcuts' ? '' : '?device=' + name)));
+  const links = [...platformLinks, ...sectionLinks];
+  const calls = [], entries = [location.href];
   let position = 0;
   const history = {
     state: { preserved: true },
@@ -40,26 +53,41 @@ function load(page, search = '', href) {
   };
   const styles = {};
   const document = {
-    body: { dataset: { manualPage: page } },
+    body: { dataset: { manualPage: page, manualRoot: definition.root } },
     documentElement: { style: { setProperty(name, value) { styles[name] = value; } } },
-    querySelectorAll(selector) { assert.equal(selector, 'a[data-manual-page]'); return links; }
+    querySelectorAll(selector) {
+      if (selector === 'a[data-manual-platform]') return platformLinks;
+      if (selector === 'a[data-manual-section]') return sectionLinks;
+      throw new Error('Unexpected selector: ' + selector);
+    }
   };
   const window = { location, history };
   new vm.Script(source).runInNewContext({ window, document, URL, URLSearchParams });
   const api = window.ManualNavigation;
   const read = (...args) => JSON.parse(JSON.stringify(api.read(...args)));
-  const link = name => links.find(item => item.dataset.manualPage === name);
-  return { api, read, links, link, location, history, calls, entries, styles };
+  return { page, definition, api, read, links, platformLinks, sectionLinks, location, history, calls, entries, styles,
+    platform: name => platformLinks.find(link => link.dataset.manualPlatform === name),
+    section: name => sectionLinks.find(link => link.dataset.manualSection === name) };
 }
 
-const indexPath = pathname => pathname.endsWith('/') ? pathname + 'index.html' : pathname;
-
 function assertLinks(manual, device, layer) {
-  for (const [page, definition] of Object.entries(pages)) {
-    const url = new URL(manual.link(page).href);
-    assert.equal(url.pathname, indexPath(definition.path), 'Correct ' + page + ' destination');
-    assert.equal(url.searchParams.get('device'), device);
-    assert.equal(url.searchParams.get('layer'), String(layer));
+  const root = new URL(manual.definition.root, manual.location.href);
+  function target(link, platform, category, destinationDevice) {
+    const expected = new URL(relativePath(platform, category), root);
+    expected.searchParams.set('device', destinationDevice);
+    expected.searchParams.set('layer', layer);
+    assert.equal(link.href, expected.href, 'Correct platform/category destination');
+  }
+  for (const platform of platforms) {
+    if (platform === manual.definition.platform) {
+      assert.equal(manual.platform(platform).href, manual.location.href, 'Selected platform retains the exact current URL');
+    } else target(manual.platform(platform), platform, manual.definition.category, device);
+    assert.equal(manual.platform(platform).getAttribute('aria-current') === 'true', platform === manual.definition.platform);
+  }
+  for (const section of sections) {
+    target(manual.section(section), manual.definition.platform, section, section === 'shortcuts' ? device : section);
+    const selected = manual.definition.category === 'shortcuts' ? 'shortcuts' : device;
+    assert.equal(manual.section(section).getAttribute('aria-current') === 'true', section === selected);
   }
 }
 
@@ -74,23 +102,35 @@ for (const page of Object.keys(pages)) {
   assertLinks(manual, 'xbox', 6);
   assert.equal(manual.calls.length, 0, 'Initialization never changes browser history');
   const original = manual.location.href;
-  assert.equal(click(manual.link(page)), true, 'Current platform retains the current view');
-  assert.equal(manual.location.href, original);
-  for (const other of Object.keys(pages).filter(name => name !== page)) {
-    assert.equal(click(manual.link(other)), false, 'Other platforms remain normal links');
-    const destination = load(other, '', manual.link(other).href);
-    assertLinks(destination, 'xbox', 6);
-    assert.equal(new URL(destination.link(page).href).pathname, indexPath(pages[page].path));
+  assert.equal(click(manual.platform(manual.definition.platform)), true, 'Current platform retains the current view');
+  assert.equal(manual.location.href, original, 'Current platform preserves tmux, query and anchor');
+  const other = manual.definition.platform === 'windows' ? 'mac' : 'windows';
+  assert.equal(click(manual.platform(other)), false, 'Cross-platform navigation stays a real link');
+  const otherPage = manual.definition.category === 'shortcuts' ? (other === 'mac' ? 'shortcuts' : 'windows-shortcuts') : other;
+  assertLinks(load(otherPage, '', manual.platform(other).href), 'xbox', 6);
+  if (manual.definition.category === 'shortcuts') {
+    for (const section of sections) {
+      assert.equal(click(manual.section(section)), section === 'shortcuts' && page !== 'tmux',
+        'Reference sections navigate normally; only the already selected shortcut page stays put');
+    }
+  } else {
+    assert.equal(click(manual.section('shortcuts')), false, 'Device manuals navigate to their own shortcut page');
+    assert.equal(click(manual.section('keyboard')), false, 'An unregistered device callback cannot swallow navigation');
   }
-  for (const modifier of ['metaKey', 'ctrlKey', 'shiftKey', 'altKey']) {
-    assert.equal(click(manual.link(page), { [modifier]: true }), false, 'Modified clicks stay native');
+  for (const link of manual.links) {
+    for (const modifier of ['metaKey', 'ctrlKey', 'shiftKey', 'altKey']) {
+      assert.equal(click(link, { [modifier]: true }), false, 'Modified clicks stay native');
+    }
+    assert.equal(click(link, { button: 1 }), false, 'Middle click stays native');
+    link.target = '_blank';
+    assert.equal(click(link), false, 'New-tab links stay native');
+    link.target = '';
+    link.attributes.download = '';
+    assert.equal(click(link), false, 'Download links stay native');
+    delete link.attributes.download;
+    const event = { button: 0, defaultPrevented: true, preventDefault() { assert.fail('Already handled clicks must not be intercepted'); } };
+    link.events.click(event);
   }
-  assert.equal(click(manual.link(page), { button: 1 }), false, 'Middle click stays native');
-  manual.link(page).target = '_blank';
-  assert.equal(click(manual.link(page)), false, 'New-tab links stay native');
-  manual.link(page).target = '';
-  manual.link(page).attributes.download = '';
-  assert.equal(click(manual.link(page)), false, 'Download links stay native');
 
   manual.api.write('keyboard', 3);
   assertLinks(manual, 'keyboard', 3);
@@ -112,31 +152,56 @@ for (const page of Object.keys(pages)) {
   assert.deepEqual(manual.read(manual.location.search), { device: 'xbox', layer: 2 });
 }
 
-// A dedicated domain may redirect / to the shortcut guide. Windows navigation
-// must therefore target /index.html, while old /cxt12e4/ deployments still work.
-for (const prefix of ['/', '/cxt12e4/']) {
+for (const page of ['windows', 'mac']) {
+  const manual = load(page, '?device=keyboard&layer=5&rev=keep#section');
+  const observed = [], stale = [];
+  manual.api.onDeviceChange((device, layer) => stale.push([device, layer]));
+  manual.api.onDeviceChange((device, layer) => {
+    observed.push([device, layer]);
+    manual.api.write(device, layer); // The index-page rendering callback owns its history write.
+  });
+  assert.equal(click(manual.section('keyboard')), true);
+  assert.deepEqual(observed, [], 'An already selected device does not reset the view or call the renderer');
+  assert.deepEqual(manual.calls, []);
+  for (const options of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+    assert.equal(click(manual.section('xbox'), options), false);
+  }
+  assert.deepEqual(observed, [], 'Native clicks do not invoke the in-page renderer');
+  assert.equal(click(manual.section('xbox')), true);
+  assert.deepEqual(observed, [['xbox', 5]], 'Same-page device switching invokes the renderer exactly once with its layer');
+  assert.deepEqual(stale, [], 'Registering a callback replaces the previous callback');
+  assertLinks(manual, 'xbox', 5);
+  assert.deepEqual(manual.calls, ['push'], 'The device switch creates exactly one history entry');
+  assert.equal(new URL(manual.location.href).searchParams.get('rev'), 'keep');
+  assert.equal(new URL(manual.location.href).hash, '#section');
+  assert.equal(click(manual.section('xbox')), true);
+  assert.deepEqual(observed, [['xbox', 5]], 'Repeated device selection is stable');
+  assert.deepEqual(manual.calls, ['push']);
+  assert.equal(click(manual.section('keyboard')), true);
+  assert.deepEqual(observed, [['xbox', 5], ['keyboard', 5]]);
+  assertLinks(manual, 'keyboard', 5);
+}
+
+// Every route works on the dedicated domain, a subdirectory and a local copy.
+// Explicit index filenames avoid root redirects and local directory listings.
+for (const base of ['https://cxt12e4.11166666.xyz/', 'http://localhost/cxt12e4/', 'file:///tmp/manual copy/']) {
   for (const [page, definition] of Object.entries(pages)) {
-    const currentPath = indexPath(definition.path.replace('/cxt12e4/', prefix));
-    const manual = load(page, '', 'https://cxt12e4.11166666.xyz' + currentPath + '?device=xbox&layer=6');
-    for (const [target, destination] of Object.entries(pages)) {
-      const expectedPath = indexPath(destination.path.replace('/cxt12e4/', prefix));
-      assert.equal(manual.link(target).href,
-        'https://cxt12e4.11166666.xyz' + expectedPath + '?device=xbox&layer=6');
-      const next = load(target, '', manual.link(target).href);
-      assert.equal(new URL(next.link(page).href).pathname, currentPath, 'Return navigation retains the deployment base');
+    const current = new URL(definition.path, base);
+    current.search = '?device=xbox&layer=6';
+    const manual = load(page, '', current.href);
+    assertLinks(manual, 'xbox', 6);
+    for (const platform of platforms) {
+      const nextPage = platform === definition.platform ? page :
+        (definition.category === 'shortcuts' ? (platform === 'mac' ? 'shortcuts' : 'windows-shortcuts') : platform);
+      const next = load(nextPage, '', manual.platform(platform).href);
+      assertLinks(next, 'xbox', 6);
     }
   }
 }
-
-// Downloaded manuals must navigate to actual files, not local directory listings.
-for (const page of Object.keys(pages)) {
-  const base = 'file:///tmp/manual' + pages[page].path;
-  const href = (base.endsWith('/') ? base + 'index.html' : base) + '?device=xbox&layer=6';
-  const offline = load(page, '', href);
-  for (const [target, definition] of Object.entries(pages)) {
-    const expected = 'file:///tmp/manual' + definition.path + (definition.path.endsWith('/') ? 'index.html' : '');
-    assert.equal(offline.link(target).href, expected + '?device=xbox&layer=6');
-  }
+// Old bookmarks using directory paths retain the same deployment base.
+for (const base of ['https://cxt12e4.11166666.xyz/', 'http://localhost/cxt12e4/']) {
+  assertLinks(load('windows', '', base + '?device=xbox&layer=6'), 'xbox', 6);
+  assertLinks(load('mac', '', base + 'mac/?device=xbox&layer=6'), 'xbox', 6);
 }
 const { read } = load('windows');
 for (let layer = 1; layer <= 8; layer++) {
@@ -149,9 +214,7 @@ for (const value of ['1.5', '-1', '9', 'NaN', 'Infinity', '01', '1e0', '1.0', ''
 assert.deepEqual(read('', 2), { device: 'keyboard', layer: 2 });
 assert.deepEqual(read('', 1.5), { device: 'keyboard', layer: 8 });
 assert.deepEqual(read('?device=XBOX&layer=3'), { device: 'keyboard', layer: 3 });
-assertLinks(load('tmux'), 'keyboard', 2);
-assertLinks(load('windows'), 'keyboard', 8);
-assertLinks(load('mac'), 'keyboard', 8);
+for (const page of Object.keys(pages)) assertLinks(load(page), 'keyboard', page === 'tmux' ? 2 : 8);
 const legacy = load('mac', '?device=xbox&layer=0');
 legacy.api.write('xbox', 8, 'replace');
 assert.deepEqual(legacy.calls, ['replace']);
@@ -179,4 +242,4 @@ const previousStyles = { ...themed.styles };
 assert.equal(themed.api.theme('not a color'), null);
 assert.deepEqual(themed.styles, previousStyles, 'Invalid theme values leave the current theme intact');
 
-console.log('PASS: shared manual navigation across Windows, Mac, tmux and shortcuts; root and subdirectory deployments, strict query parsing, preserved context, native link behavior, deduplicated browser history and readable text for all eight layer colors.');
+console.log('PASS: two-level navigation across five manuals; platform/category isolation, in-page device callbacks, native link behavior, root/subdirectory/file URLs, strict query parsing, preserved history and readable layer colors.');

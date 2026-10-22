@@ -245,30 +245,22 @@
     .controller-note { color: var(--muted); font-size: 13px; line-height: 1.65; padding: 0 14px; }
     @media(max-width:700px) { .device-switch span { width:100%; margin:4px 0; } .xbox-table th,.xbox-table td { padding:11px 8px; font-size:12px; } .xbox-table th:first-child { width:25%; } }
 </style>
-<link rel="stylesheet" href="../manual-navigation.css?v=20261019-shortcuts">
+<link rel="stylesheet" href="../manual-navigation.css?v=20261022-platform-sections">
 </head>
-<body data-manual-page="mac">
+<body data-manual-page="mac" data-manual-root="../">
   <div class="shell">
-    <nav class="topbar" aria-label="层导航">
-      <div class="brand">
-        <span class="brand-mark">12E4</span>
-        <span><strong>CXT 功能手册</strong><small>12E4 · Xbox · 8 层</small></span>
-      </div>
-      <div class="layer-nav" id="layerNav"></div>
-      <div class="top-actions">
-        <button class="icon-button" id="printButton" title="打印或另存为 PDF" aria-label="打印">⌁</button>
-      </div>
-    </nav><nav class="platform-nav" aria-label="平台说明">
-      <a id="otherPlatform" data-manual-page="windows" data-manual-base="../" href="../">Windows 键盘 / 手柄</a>
-      <a data-manual-page="mac" data-manual-base="./" href="./" aria-current="page">Mac 键盘 / 手柄</a>
-      <a data-manual-page="tmux" data-manual-base="tmux.html" href="tmux.html">tmux / Karabiner</a>
-      <a data-manual-page="shortcuts" data-manual-base="shortcuts.html" href="shortcuts.html">快捷键总表</a>
-    </nav>
+    <header class="manual-header">
+  <div class="manual-heading"><div class="brand"><span class="brand-mark">12E4</span><span><strong>CXT 功能手册</strong><small>Mac · 12E4 / 手柄</small></span></div><button type="button" class="manual-print" id="printButton">打印 / 存 PDF</button></div>
+  <nav class="manual-selector" aria-label="手册导航">
+    <div class="manual-choice-row"><span class="manual-choice-label" id="platformLabel">系统</span><div class="platform-nav" role="group" aria-labelledby="platformLabel"><a id="otherPlatform" data-manual-platform="windows" href="../index.html">Windows</a><a data-manual-platform="mac" href="../mac/index.html" aria-current="true">Mac</a></div></div>
+    <div class="manual-choice-row"><span class="manual-choice-label" id="sectionLabel">内容</span><div class="section-nav" role="group" aria-labelledby="sectionLabel"><a data-manual-section="keyboard" href="index.html?device=keyboard" aria-current="true">12E4</a><a data-manual-section="xbox" href="index.html?device=xbox">手柄</a><a data-manual-section="shortcuts" href="shortcuts.html">快捷键</a></div></div>
+  </nav>
+</header>
 
-    <header class="hero">
+    <header class="hero device-hero">
       <div>
         <div class="eyebrow">Personal Control Surface</div>
-        <h1>12E4 + Xbox<br>Mac 八层功能手册</h1>
+        <h1><span class="keyboard-only">12E4 键盘</span><span class="xbox-only">Xbox 手柄</span><br>Mac 八层功能手册</h1>
         <p class="lead">键盘与手柄共用 Codex、终端、Notion 等八个应用层，各自保存按键映射。按设备和层查默认功能，也可在 Bridge 的“分层按键设置”里单独修改。</p>
         <div class="hero-tags">
           <span class="tag">自动随前台应用切层</span>
@@ -277,7 +269,7 @@
           <span class="tag">Xbox 蓝牙手柄 · 同层独立映射</span>
         </div>
       </div>
-      <aside class="quick-card">
+      <aside class="quick-card keyboard-only">
         <h2>启动 Mac 应用 · 按住键12，再按</h2>
         <div class="chord"><span><b>1</b> → ChatGPT</span><span><b>2</b> → Ghostty</span><span><b>3</b> → Notion</span><span><b>4</b> → Finder</span><span><b>5</b> → Claude 桌面版</span><span><b>6</b> → Arc</span><span><b>7</b> → Safari</span><span><b>8</b> → Chrome</span><span><b>9</b> → 微信</span><span><b>10</b> → WorkBuddy</span><span><b>11</b> → 后备 Dock 位</span></div>
         <p class="quick-note">上表为维护者的应用清单示例。实际从本机 <code>~/.config/karabiner/dock-slots.txt</code> 读取，未配置的槽位使用 Dock 顺序；松开两键后执行。拖动 Dock 图标不改变已配置编号。普通键盘单按 Win 仍打开 Apps 应用列表。键12单独短按保留当前层功能；长按650ms进入 tmux 灯位4。没有配置的应用位会提示。</p>
@@ -292,11 +284,8 @@
     </div>
 
     <section id="layerSection" aria-label="当前设备与应用层">
-      <div class="device-switch" role="group" aria-label="选择设备">
-        <button type="button" data-device="keyboard" aria-pressed="true">12E4 键盘</button>
-        <button type="button" data-device="xbox" aria-pressed="false">Xbox 手柄</button>
-        <span>这里显示默认映射；本机覆盖以 Bridge 设置为准。</span>
-      </div>
+      <p class="mapping-note">这里显示默认映射；本机覆盖以 Bridge 设置为准。</p>
+      <div class="layer-nav manual-layers" id="layerNav" role="group" aria-label="选择应用层"></div>
       <div class="layer-heading">
         <div><h2 id="layerTitle"></h2><p id="layerApps"></p></div>
         <div class="indicator-pill"><span class="dot" id="indicatorDot"></span><span id="indicatorText"></span></div>
@@ -325,7 +314,7 @@
       </article>
     </section>
 
-    <section class="section" id="controllerCheck">
+    <section class="section xbox-only" id="controllerCheck">
       <div class="section-header"><h2>Mac 实测 · 按顺序确认</h2><p>2026-10-20 已实机确认 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认。本次新增的 Codex R3 Tab 与其他分层功能仍请逐项确认。</p></div>
       <details open><summary>先测基础操作，再测 Codex / 终端 / Notion</summary><div class="detail-body"><ol>
         <li><strong>连接与回中：</strong>按 Xbox 键唤醒，在 Bridge 菜单检查手柄状态；松开所有按钮、扳机和摇杆。只有显示已连接、未暂停，才继续测试。</li>
@@ -335,10 +324,10 @@
         <li><strong>分层：</strong>切到 Codex、Ghostty、Notion，菜单栏数字依次应为 1、2、3。Codex 的 RT+L3 聚焦输入框，按下右摇杆 R3 发送 Tab，RT+R3 保留中键；Notion 的 RT+L3 打开快速搜索。RT+A / B 默认复制 / 粘贴；粘贴先用无执行风险的短文本确认，不发送回车。</li>
         <li><strong>已有 tmux：</strong>在现有 session 中测试 RT+L3 缩放 pane，RT+十字键切 pane，RT+LB / RB 切已有 session。Menu 选择已有会话后，会话总数不应增加；没有会话时面板应显示空态。</li>
         <li><strong>独立配置：</strong>在菜单栏“分层按键设置…”里只修改 Xbox 的一个层，确认 12E4 同层与 Xbox 其他层不受影响；再恢复本层默认。记录出问题的应用、层号、按钮和实际结果。</li>
-      </ol><p>Windows 使用同一分层思路，L6 是 Total Commander，终端 RT 快捷键与滚轮单位也不同；请查看 <a href="../?device=xbox&amp;layer=2">Windows 对应层说明</a>，不要直接导入另一平台的配置。</p></div></details>
+      </ol><p>Windows 使用同一分层思路，L6 是 Total Commander，终端 RT 快捷键与滚轮单位也不同；请查看 <a href="../index.html?device=xbox&amp;layer=2">Windows 对应层说明</a>，不要直接导入另一平台的配置。</p></div></details>
     </section>
 
-    <section class="section">
+    <section class="section keyboard-only">
       <div class="section-header"><h2>Codex 六任务状态灯</h2><p>所有层中，键1、2、3、5、6、7始终对应任务1–6并显示实时状态；当前层指示灯另外叠加显示。</p></div>
       <div class="status-grid">
         <div class="status" style="--status:#ffffff"><span class="status-light" style="border:1px solid #d0d5dd"></span><strong>白色 · 空闲 / 已查看</strong><small>任务空闲或已查看；主动停止也恢复白色。</small></div>
@@ -349,7 +338,7 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section keyboard-only">
       <div class="section-header"><h2>层指示灯位置与颜色</h2><p>L1–L8依次在键1–8双呼吸；两组六个实时状态灯仍在所有层保留，提示结束后立即恢复被覆盖的任务或 session 状态。</p></div>
       <div class="layer-map" id="layerMap"></div>
     </section>
@@ -358,7 +347,7 @@
 <details open><summary>窗口与四套固定布局</summary><div class="detail-body"><p><b>Caps + Shift + 实体 Win + S</b>：左上 Codex、左下 Claude 桌面版、右侧 Notion。Z / X / C 保留跨屏专注、终端开发、三屏办公；完成后聚焦 Codex。</p><p>原 S 的当前窗口跨两屏操作改从 <b>三键 + Space → 跨两屏 / 恢复</b> 选择，保留菜单栏。<a href="shortcuts.html#presets">查看四套固定布局与窗口快捷键 →</a></p></div></details>
 <details open><summary>Mac tmux 与 Karabiner</summary><div class="detail-body"><p>使用 winsettings 共享配置与可重新安装的 Mac 适配：Caps+S 可作 tmux 前缀，Option+实际方向键切换面板。原来的 Alt+H/J/K/L 编辑和 Alt+9/0 鼠标操作保留。</p><p><a href="tmux.html">查看完整 tmux 快捷键、配置与备份说明 →</a></p></div></details>
 <details><summary>启动、权限与输入</summary><div class="detail-body"><ul><li>菜单栏“使用说明”打开本页的在线版本；“快捷键总表”打开 <a href="https://cxt12e4.11166666.xyz/">新域名首页</a>。“离线说明”打开应用内随版本附带的说明与完整手册，断网时可用。在线版更新与已安装版本可能不同。</li><li>首次安装：从 <a href="https://github.com/zhangyu0806/CXT12E4-Bridge">项目仓库</a>获取源码，按 Mac 安装说明执行 <code>./install/macos/install.sh</code>。需要 macOS 13+、Xcode Command Line Tools、Python 3 和已启用的 Karabiner；tmux 另需对应依赖。三屏布局、Caps 与普通键盘数字快启是独立配置示例，不由 Bridge 安装器自动部署。</li><li>“应用程序”中的 CXT12E4 Bridge 登录时自动启动。菜单栏与 Win11 一致，使用八层对应颜色的正方形色块，中央粗体数字 1–8 显示当前层；L1、L4 白字，其余黑字。悬停显示层名、自动或手动模式及连接状态；菜单勾选标明当前层及是否自动切层，也可手选层。</li><li>开启 Bridge 的辅助功能和输入监控，并保持 Karabiner 运行。12E4 专用输入规则仅匹配此设备。</li><li>短按在松开时执行；长按650ms进入对应任务或会话，长按后不再追加短按。键12组合沿用原应用位。普通按键组合与旋钮私有标记互斥，重叠或异常报告会取消本轮，释放全部按键后再操作。</li><li>12E4 默认 K4 在各层发送加速纵向滚轮，按下功能依当前层；分层设置可覆盖短按与旋钮动作，长按和键12应用组合保持固定。</li></ul></div></details>
-<details open><summary>Xbox 分层设置与暂停</summary><div class="detail-body"><ul><li>菜单栏 → “分层按键设置…” → 选择 12E4 或 Xbox → 选择 L1–L8 → 修改对应操作。两设备共用当前层，各层覆盖互相独立；未设置的控件使用该层默认值，“恢复本层默认”会重置<strong>整个当前设备当前层</strong>，包括该层其他自定义项；若只想改四个面键，请单独修改 A / B / X / Y。升级会保留已有自定义覆盖，写入配置的旧映射不会被默认更新替换。</li><li>左摇杆默认鼠标、右摇杆默认双向滚动；Blender 层右摇杆默认旋转视角。设置页可改摇杆模式、死区、鼠标速度、滚动速度、LT 精细倍率及滚动方向。</li><li><strong>设置窗口内：</strong>映射修改立即保存；手柄 A 完成，B 或 Menu 关闭，都会先保存并校验未保存的参数，输入有误则保留窗口和错误提示。B 在这里不是撤销；要放弃未保存参数，请先点“撤销修改”。方向键交给当前输入框或下拉框，Menu 不会再叠开任务选择面板。</li><li>手柄 Menu 短按打开两组选择：Codex 最近任务、tmux 已有 session；方向键移动，A 确认，B 或 Menu 取消。所选项按稳定身份打开，不会随最近列表刷新而跳到另一个槽位。没有应用启动组，也不会新建 tmux 会话。切去其他应用会自动关闭选择面板，不抢回焦点。</li><li>手柄 Menu 长按或菜单“暂停 / 恢复 Xbox”只暂停手柄。也可用“在当前应用暂停 / 恢复 Xbox”记录当前应用，或在设置里填实际游戏的 Bundle ID。默认列表仅含 Steam 和 Games 启动器，不等于自动识别全部游戏；游戏进程需单独添加，或进入游戏前手动暂停。处于应用暂停名单时，连 Menu 也保留给前台应用；恢复请用菜单栏或离开该应用。普通应用中的手动暂停仍可长按 Menu 恢复。</li><li>手柄按键未独占：暂停名单之外的前台游戏仍可能收到原始输入。Xbox、View、分享三键由系统处理，本版本不接管。X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已实机通过；精细移动、跨层手感与本次新增的 R3 Tab 仍需实测。</li></ul></div></details>
+<details open class="xbox-only"><summary>Xbox 分层设置与暂停</summary><div class="detail-body"><ul><li>菜单栏 → “分层按键设置…” → 选择 12E4 或 Xbox → 选择 L1–L8 → 修改对应操作。两设备共用当前层，各层覆盖互相独立；未设置的控件使用该层默认值，“恢复本层默认”会重置<strong>整个当前设备当前层</strong>，包括该层其他自定义项；若只想改四个面键，请单独修改 A / B / X / Y。升级会保留已有自定义覆盖，写入配置的旧映射不会被默认更新替换。</li><li>左摇杆默认鼠标、右摇杆默认双向滚动；Blender 层右摇杆默认旋转视角。设置页可改摇杆模式、死区、鼠标速度、滚动速度、LT 精细倍率及滚动方向。</li><li><strong>设置窗口内：</strong>映射修改立即保存；手柄 A 完成，B 或 Menu 关闭，都会先保存并校验未保存的参数，输入有误则保留窗口和错误提示。B 在这里不是撤销；要放弃未保存参数，请先点“撤销修改”。方向键交给当前输入框或下拉框，Menu 不会再叠开任务选择面板。</li><li>手柄 Menu 短按打开两组选择：Codex 最近任务、tmux 已有 session；方向键移动，A 确认，B 或 Menu 取消。所选项按稳定身份打开，不会随最近列表刷新而跳到另一个槽位。没有应用启动组，也不会新建 tmux 会话。切去其他应用会自动关闭选择面板，不抢回焦点。</li><li>手柄 Menu 长按或菜单“暂停 / 恢复 Xbox”只暂停手柄。也可用“在当前应用暂停 / 恢复 Xbox”记录当前应用，或在设置里填实际游戏的 Bundle ID。默认列表仅含 Steam 和 Games 启动器，不等于自动识别全部游戏；游戏进程需单独添加，或进入游戏前手动暂停。处于应用暂停名单时，连 Menu 也保留给前台应用；恢复请用菜单栏或离开该应用。普通应用中的手动暂停仍可长按 Menu 恢复。</li><li>手柄按键未独占：暂停名单之外的前台游戏仍可能收到原始输入。Xbox、View、分享三键由系统处理，本版本不接管。X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已实机通过；精细移动、跨层手感与本次新增的 R3 Tab 仍需实测。</li></ul></div></details>
 <details><summary>tmux 六灯与会话</summary><div class="detail-body"><ul><li>终端输入 <code>tmux</code> 连接已有会话；没有会话时不会自动新建，需要时显式输入 <code>tmux new</code>。自动恢复和开机启动仍关闭。</li><li>键9、10、11、12、8、4依次对应 tmux 灯位1–6，长按切入对应的现有会话。</li><li>01–06 开头的会话固定对应灯位；默认数字名或普通项目名自动分配空闲灯位，已有分配不会因其他会话退出而前移，重启 Bridge 后保留。</li><li>没有会话的灯位熄灭；普通 shell 空闲为白灯。重复固定编号会关闭对应灯位并拒绝切换。</li><li>已运行的 Claude Code / OpenCode 需重启一次才能加载状态 hooks。白为空闲，蓝为运行，绿为新完成，黄为等待，红为真正错误；主动停止任务恢复白色，不作为错误。</li></ul></div></details>
 <details><summary>验证范围与日志</summary><div class="detail-body"><ul><li>以下记录针对维护者当时的设备、应用版本与配置。新安装仍需按本页清单逐项确认；自动检查与实机操作是不同的验证。</li><li>已实机确认侧栏、K4 滚动、键12+2 启动 Ghostty、长按任务键返回 Codex，以及 tmux 白灯和长按切换。</li><li>模型控制已调整为精确识别 6.1 Sol、分离强度与权限；旧版自动确认的验证不代表新行为已验收。Xbox 的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已于 2026-10-20 实机通过；本次新增的 Codex R3 Tab、其他分层操作与手感仍需逐项确认。</li><li>截至 2026-10-09，Mac tmux 适配已通过 78 项自动检查，包括快照恢复后的 Agent 重启及裸 tmux 连接行为。配置热加载检查确认已有面板及其进程保留。普通键盘的按键协议与实机范围见 <a href="tmux.html">tmux 验证说明</a>。</li><li>运行日志与状态位于 <code>~/Library/Application Support/CXT12E4Bridge/</code>。本次没有改键盘固件，接回 Windows 可继续使用原 Bridge。</li></ul></div></details></section>
     <footer>
@@ -367,7 +356,7 @@
     </footer>
   </div>
 
-  <script src="../manual-navigation.js?v=20261022-domain"></script>
+  <script src="../manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
     const layers = [
   {
@@ -2024,9 +2013,9 @@
     const layerHelp = document.getElementById('layerHelp');
     const layerMap = document.getElementById('layerMap');
 
-    document.querySelectorAll('[data-device]').forEach(button => button.addEventListener('click', () => {
-      currentDevice = button.dataset.device; showLayer(current);
-    }));
+    window.ManualNavigation.onDeviceChange(device => {
+      currentDevice = device; showLayer(current);
+    });
 
     const orderedLayers = [...layers].sort((left, right) => left.n - right.n);
     orderedLayers.forEach(layer => {
@@ -2099,7 +2088,7 @@
 
       document.getElementById('keyboardWorkspace').hidden = currentDevice !== 'keyboard';
       document.getElementById('xboxPanel').hidden = currentDevice !== 'xbox';
-      document.querySelectorAll('[data-device]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.device === currentDevice)));
+
       const xboxMappings = document.getElementById('xboxMappings');
       xboxMappings.replaceChildren();
       xboxProfiles[String(number)].forEach(mapping => {

@@ -56,7 +56,7 @@ namespace Cxt1024Bridge
             var guide = new ToolStripMenuItem("使用说明（Windows / Mac）");
             guide.Click += delegate { Process.Start(new ProcessStartInfo("https://cxt12e4.11166666.xyz/index.html?device=xbox") { UseShellExecute = true }); };
             var shortcuts = new ToolStripMenuItem("快捷键总表");
-            shortcuts.Click += delegate { Process.Start(new ProcessStartInfo("https://cxt12e4.11166666.xyz/") { UseShellExecute = true }); };
+            shortcuts.Click += delegate { Process.Start(new ProcessStartInfo("https://cxt12e4.11166666.xyz/shortcuts.html") { UseShellExecute = true }); };
             int position = _menu.Items.Count - 2;
             foreach (ToolStripItem item in new ToolStripItem[] { settings, chooser, pause, appPause, guide, shortcuts }) _menu.Items.Insert(position++, item);
             if (!string.IsNullOrEmpty(_profiles.LoadError)) ShowBalloon("配置未加载", _profiles.LoadError, ToolTipIcon.Warning);

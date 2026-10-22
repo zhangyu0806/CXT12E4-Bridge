@@ -1,9 +1,34 @@
-/* Shared navigation for the Windows, Mac and tmux manuals. */
+/* Platform first, then device or shortcuts. Works online and from local files. */
 (function () {
   'use strict';
 
   const page = document.body.dataset.manualPage;
-  const links = [...document.querySelectorAll('a[data-manual-page]')];
+  const platform = page === 'windows' || page === 'windows-shortcuts' ? 'windows' : 'mac';
+  const isDevicePage = page === 'windows' || page === 'mac';
+  const root = new URL(document.body.dataset.manualRoot, window.location.href);
+  const platformLinks = [...document.querySelectorAll('a[data-manual-platform]')];
+  const sectionLinks = [...document.querySelectorAll('a[data-manual-section]')];
+  let currentState;
+  let deviceChange;
+
+  function destination(targetPlatform, section, state) {
+    const directory = targetPlatform === 'mac' ? 'mac/' : '';
+    const url = new URL(directory + (section === 'shortcuts' ? 'shortcuts.html' : 'index.html'), root);
+    url.searchParams.set('device', section === 'shortcuts' ? state.device : section);
+    url.searchParams.set('layer', state.layer);
+    return url;
+  }
+
+  function selected(link, active) {
+    if (active) link.setAttribute('aria-current', 'true');
+    else link.removeAttribute('aria-current');
+  }
+
+  function ordinaryClick(event, link) {
+    return !event.defaultPrevented && (event.button === undefined || event.button === 0) &&
+      !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey &&
+      (!link.target || link.target === '_self') && !link.hasAttribute('download');
+  }
 
   function validLayer(value, fallback) {
     if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 8) {
@@ -65,13 +90,17 @@
 
   function update(device, layer) {
     const state = normalized(device, layer);
-    for (const link of links) {
-      const destination = new URL(link.dataset.manualBase, window.location.href);
-      // Explicit index files work both offline and when the site root redirects to a featured guide.
-      if (destination.pathname.endsWith('/')) destination.pathname += 'index.html';
-      destination.searchParams.set('device', state.device);
-      destination.searchParams.set('layer', state.layer);
-      link.href = destination.href;
+    currentState = state;
+    const section = isDevicePage ? state.device : 'shortcuts';
+    document.body.dataset.manualDevice = state.device;
+    for (const link of platformLinks) {
+      const target = link.dataset.manualPlatform;
+      link.href = target === platform ? window.location.href : destination(target, section, state).href;
+      selected(link, target === platform);
+    }
+    for (const link of sectionLinks) {
+      link.href = destination(platform, link.dataset.manualSection, state).href;
+      selected(link, link.dataset.manualSection === section);
     }
     return state;
   }
@@ -90,18 +119,25 @@
     return update(state.device, state.layer);
   }
 
-  for (const link of links) {
+  for (const link of platformLinks) {
     link.addEventListener('click', event => {
-      if (link.dataset.manualPage !== page || event.defaultPrevented ||
-          (event.button !== undefined && event.button !== 0) ||
-          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
-          (link.target && link.target !== '_self') || link.hasAttribute('download')) return;
-      // An already selected platform is a stable location, not a reset button.
-      event.preventDefault();
+      if (link.dataset.manualPlatform === platform && ordinaryClick(event, link)) event.preventDefault();
+    });
+  }
+  for (const link of sectionLinks) {
+    link.addEventListener('click', event => {
+      if (!ordinaryClick(event, link)) return;
+      const section = link.dataset.manualSection;
+      if (isDevicePage && section !== 'shortcuts' && deviceChange) {
+        event.preventDefault();
+        if (section !== currentState.device) deviceChange(section, currentState.layer);
+      } else if (!isDevicePage && page !== 'tmux' && section === 'shortcuts') {
+        event.preventDefault();
+      }
     });
   }
 
-  window.ManualNavigation = { read, update, write, theme };
+  window.ManualNavigation = { read, update, write, theme, onDeviceChange(callback) { deviceChange = callback; } };
   const initial = read(window.location.search, page === 'tmux' ? 2 : 8);
   update(initial.device, initial.layer);
 }());

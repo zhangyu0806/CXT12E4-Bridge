@@ -10,15 +10,15 @@
 @media(max-width:800px){.shell{width:calc(100% - 28px);padding-top:16px}.legend{grid-template-columns:1fr}.favorites{grid-template-columns:repeat(2,1fr)}.shortcut-table th,.shortcut-table td{padding:12px 16px}.shortcut-table thead th:first-child{width:31%}.shortcut-table thead th:last-child{width:28%}.section-head{padding:18px 16px}}
 @media(max-width:560px){.brand small{font-size:11px}.print{font-size:13px;padding:9px 11px}.hero{padding-top:28px}.lead{font-size:16px}.legend article{padding:16px}.prefix{font-size:17px}.favorite{padding:12px}.shortcut-table thead{display:none}.shortcut-table,.shortcut-table tbody,.shortcut-table tr,.shortcut-table tbody th,.shortcut-table td{display:block;width:100%}.shortcut-table tr{padding:13px 16px;border-bottom:1px solid var(--line)}.shortcut-table tbody th,.shortcut-table td{border:0;padding:3px 0}.shortcut-table tbody th{color:#0067ab;font-size:15px}.shortcut-table td:last-child:empty{display:none}.section-head h2{font-size:21px}.search-box{padding:14px}}
 @media print{body{background:white;font-size:11px}.shell{width:100%;padding:0}.print,.search-box,.favorites{display:none!important}.hero{padding:12px 0}.hero h1{font-size:30px}.lead{font-size:13px}.legend{gap:10px}.legend article{padding:12px}.section{border-radius:0;overflow:visible;break-inside:auto}.section-head{padding:12px;break-after:avoid}.section-head h2{font-size:18px}.shortcut-table{table-layout:auto}.shortcut-table th,.shortcut-table td{font-size:11px!important;padding:8px 10px}.shortcut-table tr{break-inside:avoid}.shortcut-table thead{display:table-header-group}.more{break-inside:avoid}.section[hidden],tr[hidden]{display:revert!important}a{color:inherit;text-decoration:none}footer{font-size:10px}}
-</style><link rel="stylesheet" href="../manual-navigation.css?v=20261019-shortcuts">
-</head><body data-manual-page="shortcuts"><main class="shell">
-<header class="masthead"><div class="brand"><span class="brand-mark">12E4</span><span><strong>CXT 功能手册</strong><small>Mac · 我的快捷键总表</small></span></div><button type="button" class="print" id="printButton">打印 / 存 PDF</button></header>
-<nav class="platform-nav" aria-label="平台说明">
-<a data-manual-page="windows" data-manual-base="../" href="../index.html">Windows 键盘 / 手柄</a>
-<a data-manual-page="mac" data-manual-base="./" href="index.html">Mac 键盘 / 手柄</a>
-<a data-manual-page="tmux" data-manual-base="tmux.html" href="tmux.html">tmux / Karabiner</a>
-<a data-manual-page="shortcuts" data-manual-base="shortcuts.html" href="shortcuts.html" aria-current="page">快捷键总表</a>
-</nav>
+</style><link rel="stylesheet" href="../manual-navigation.css?v=20261022-platform-sections">
+</head><body data-manual-page="shortcuts" data-manual-root="../"><main class="shell">
+<header class="manual-header">
+  <div class="manual-heading"><div class="brand"><span class="brand-mark">12E4</span><span><strong>CXT 功能手册</strong><small>Mac · 快捷键</small></span></div><button type="button" class="manual-print" id="printButton">打印 / 存 PDF</button></div>
+  <nav class="manual-selector" aria-label="手册导航">
+    <div class="manual-choice-row"><span class="manual-choice-label" id="platformLabel">系统</span><div class="platform-nav" role="group" aria-labelledby="platformLabel"><a id="otherPlatform" data-manual-platform="windows" href="../shortcuts.html">Windows</a><a data-manual-platform="mac" href="../mac/shortcuts.html" aria-current="true">Mac</a></div></div>
+    <div class="manual-choice-row"><span class="manual-choice-label" id="sectionLabel">内容</span><div class="section-nav" role="group" aria-labelledby="sectionLabel"><a data-manual-section="keyboard" href="index.html?device=keyboard">12E4</a><a data-manual-section="xbox" href="index.html?device=xbox">手柄</a><a data-manual-section="shortcuts" href="shortcuts.html" aria-current="true">快捷键</a></div></div>
+  </nav>
+</header>
 <div class="hero"><div class="eyebrow">固定布局更新 · 2026-10-22</div><h1>常用操作，集中在这一页。</h1><p class="lead">三屏布局、Windows 操作习惯、编辑与鼠标、应用快启和 tmux。这里写的是维护者已配置的 T90 / Karabiner / Hammerspoon / tmux 快捷键，是个人配置参考；Bridge 安装器不会自动部署三屏布局、Caps 映射和普通键盘数字快启。12E4 每层与 Xbox 的默认按键图从上方手册进入。</p></div>
 <div class="legend"><article><h2>三键组合</h2><p class="prefix"><kbd>Caps</kbd> + <kbd>Shift</kbd> + <kbd>实体 Win</kbd></p><p>Caps 代替 Command。普通应用与终端都可这样按；Shift 与 Caps 的先后顺序均兼容。下表“<b>三键</b>”均指这个组合。</p></article><article><h2>按键名称怎么读</h2><p><b>Win / 左 Alt</b> 指 T90 键帽上的实体键。<b>Option</b> 是 Mac 的 ⌥；终端中可用实体左 Alt；被编辑 / 鼠标层占用的组合会在表中单独注明。</p><p><b>前缀 → 键</b>：先按 <kbd>Caps + S</kbd> 或 <kbd>Ctrl + S</kbd>，松开，再按后面的键。<b>三键 + 键</b> 则同时按住。</p></article></div>
 <div class="favorites" aria-label="常用布局"><a class="favorite" href="#layouts"><small>三键 + ↑ / ↓</small><b>上半屏 / 下半屏</b><small>当前显示器的半屏</small></a><a class="favorite" href="#layouts"><small>三键 + L</small><b>移到右侧竖屏</b><small>当前窗口铺满右屏</small></a><a class="favorite" href="#layouts"><small>三键 + A</small><b>跨左侧上下双屏</b><small>当前窗口铺满，隐藏菜单栏</small></a><a class="favorite" href="#presets"><small>三键 + Z / X / C / S</small><b>四套固定布局</b><small>专注 / 终端 / 办公 / Codex + Claude</small></a></div>
@@ -88,7 +88,7 @@
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>9</kbd></th><td>鼠标左键点击</td><td>在当前指针位置点击；所有应用都保留，包括终端。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>0</kbd></th><td>鼠标右键点击</td><td>在当前指针位置点击。</td></tr>
 </tbody></table></section>
-<section class="section" id="tmux-direct"><header class="section-head"><h2>tmux：直接按</h2><p>需处于已接入 tmux 的终端。这里的 Alt 可用 T90 实体左 Alt；被上方编辑 / 鼠标层占用的组合另行注明。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
+<p class="manual-subnav"><a href="tmux.html">查看 tmux / Karabiner 详细说明 →</a></p><section class="section" id="tmux-direct"><header class="section-head"><h2>tmux：直接按</h2><p>需处于已接入 tmux 的终端。这里的 Alt 可用 T90 实体左 Alt；被上方编辑 / 鼠标层占用的组合另行注明。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>F1 … F10</kbd></th><td>切到编号 1 … 10 的已有会话</td><td>当前 T90 在 Ghostty / Terminal 已适配直接发 F 键；没有对应会话不创建。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>F12</kbd></th><td>切到编号 11 的已有会话</td><td>F11 保留为应用原生全屏。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Alt</kbd> + <kbd>1 … 8</kbd></th><td>切当前会话的窗口 1 … 8</td><td>第 9 窗口用前缀 → w 选择。左 Alt + 9 仍是鼠标点击。</td></tr>
@@ -170,7 +170,7 @@
 <tr data-shortcut><th scope="row"><kbd>Xbox Menu ≡ 短按 / 长按</kbd></th><td>任务与会话面板 / 暂停或恢复手柄</td><td>长按约 0.85 秒；完整映射见手柄页。</td></tr>
 </tbody></table><div class="more"><p><a href="index.html?device=keyboard&amp;layer=1">12E4 完整八层按键与旋钮图 →</a>　<a href="index.html?device=xbox&amp;layer=1">Xbox 完整八层按键图 →</a></p><p>短按、长按、键 12 组合与旋钮操作互斥；重叠输入取消后，松开全部键再操作。切任务时会唤回目标应用，已有跨屏窗口由窗口管理配置维护。</p></div></section></div><p id="empty" hidden>没有匹配的快捷键。试试动作名称，或切回“全部”。</p>
 <footer><p>固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。数字快启更新：2026-10-21，槽 5 改为 Claude 桌面版，后续应用顺延至槽 10。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
-</main><script src="../manual-navigation.js?v=20261022-domain"></script>
+</main><script src="../manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
 const input=document.getElementById('searchInput'), sections=[...document.querySelectorAll('.section')], rows=[...document.querySelectorAll('tbody tr[data-shortcut]')], filters=[...document.querySelectorAll('[data-filter]')];
 let category='all';

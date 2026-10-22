@@ -98,7 +98,9 @@ class Element {
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this.children = nodes; }
   addEventListener(name, callback) { this.events[name] = callback; }
-  setAttribute(name, value) { this.attributes[name] = value; }
+  setAttribute(name, value) { this.attributes[name] = String(value); }
+  getAttribute(name) { return this.attributes[name] ?? null; }
+  removeAttribute(name) { delete this.attributes[name]; }
   hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
   scrollIntoView() {}
   focus() {}
@@ -115,21 +117,30 @@ function loadManual(platform) {
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length, platform + ' HTML IDs are unique');
   const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
-  const devices = ['keyboard', 'xbox'].map(device => {
-    const button = new Element('button'); button.dataset.device = device; return button;
-  });
-  const platformLinks = [...html.matchAll(/<a\b([^>]*data-manual-page="([^"]+)"[^>]*)>/g)].map(match => {
+  const navigationLinks = [...html.matchAll(/<a\b([^>]*data-manual-(platform|section)="([^"]+)"[^>]*)>/g)].map(match => {
     const id = match[1].match(/\bid="([^"]+)"/);
     const link = id ? elements[id[1]] : new Element('a');
-    link.dataset.manualPage = match[2];
-    link.dataset.manualBase = match[1].match(/data-manual-base="([^"]+)"/)[1];
+    link.dataset[match[2] === 'platform' ? 'manualPlatform' : 'manualSection'] = match[3];
+    const href = match[1].match(/\bhref="([^"]+)"/);
+    assert(href, 'Every navigation anchor has a static fallback href');
+    link.href = href[1];
     return link;
   });
+  const platformLinks = navigationLinks.filter(link => link.dataset.manualPlatform);
+  const sectionLinks = navigationLinks.filter(link => link.dataset.manualSection);
+  assert.deepEqual(platformLinks.map(link => link.dataset.manualPlatform), ['windows', 'mac']);
+  assert.deepEqual(sectionLinks.map(link => link.dataset.manualSection), ['keyboard', 'xbox', 'shortcuts']);
+  const devices = sectionLinks.filter(link => link.dataset.manualSection !== 'shortcuts');
+  const manualRoot = html.match(/<body\b[^>]*data-manual-root="([^"]+)"/);
+  assert(manualRoot, platform + ' manual declares its deployment root');
   const document = {
-    body: { dataset: { manualPage: platform } },
+    body: { dataset: { manualPage: platform, manualRoot: manualRoot[1] } },
     documentElement: new Element('html'),
     getElementById(id) { assert(elements[id], 'Missing HTML element: ' + id); return elements[id]; },
-    querySelectorAll(selector) { if (selector === 'a[data-manual-page]') return platformLinks; assert.equal(selector, '[data-device]'); return devices; },
+    querySelectorAll(selector) {
+      if (selector === 'a[data-manual-platform]') return platformLinks;
+      assert.equal(selector, 'a[data-manual-section]'); return sectionLinks;
+    },
     createElement(tag) { return new Element(tag); },
     addEventListener() {}
   };
@@ -196,7 +207,7 @@ function checkRendering(manual) {
       assert.equal(new URL(location.href).searchParams.get('device'), device);
       assert.equal(new URL(location.href).searchParams.get('layer'), String(layer));
       assert(elements.otherPlatform.href.includes(`device=${device}&layer=${layer}`));
-      assert.equal(devices.find(button => button.dataset.device === device).attributes['aria-pressed'], 'true');
+      assert.equal(devices.find(link => link.dataset.manualSection === device).attributes['aria-current'], 'true');
       states++;
     }
   }
@@ -205,7 +216,15 @@ function checkRendering(manual) {
   assert(elements.searchResults.children.length > 0, 'Xbox mappings can be searched');
   elements.searchResults.children[0].events.click();
   assert.equal(run('currentDevice'), 'xbox', 'Search switches to the matching device');
-  location.href = 'http://localhost/?device=keyboard&layer=3'; location.search = '?device=keyboard&layer=3';
+  // Exercise the real index-page callback, not only direct showLayer calls.
+  for (const device of ['keyboard', 'xbox']) {
+    const event = { button: 0, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    devices.find(link => link.dataset.manualSection === device).events.click(event);
+    assert.equal(event.defaultPrevented, true, 'Index-page device navigation stays in the current document');
+    assert.equal(run('currentDevice'), device, 'The registered callback switches the displayed device');
+    assert.equal(new URL(location.href).searchParams.get('device'), device);
+  }
+  location.href = new URL('?device=keyboard&layer=3', location.href).href; location.search = '?device=keyboard&layer=3';
   manual.windowEvents.popstate();
   assert.equal(run('current'), 3, 'Back/forward re-renders the URL layer');
   assert.equal(run('currentDevice'), 'keyboard', 'Back/forward restores the device');

@@ -4,7 +4,7 @@
 
 Application-aware keyboard and controller bridges for Windows and macOS, with a QMK keymap and optional terminal status integrations.
 
-[Windows 手册](https://cxt12e4.11166666.xyz/index.html) · [Mac 手册](https://cxt12e4.11166666.xyz/mac/index.html) · [Mac tmux 配置](https://cxt12e4.11166666.xyz/mac/tmux.html) · [个人快捷键参考](https://cxt12e4.11166666.xyz/)
+[Windows 手册](https://cxt12e4.11166666.xyz/index.html) · [Windows 快捷键](https://cxt12e4.11166666.xyz/shortcuts.html) · [Mac 手册](https://cxt12e4.11166666.xyz/mac/index.html) · [Mac tmux 配置](https://cxt12e4.11166666.xyz/mac/tmux.html) · [个人快捷键参考](https://cxt12e4.11166666.xyz/)
 
 ## 项目包含什么
 
@@ -70,7 +70,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install\windows-home\Verif
 1. 连接设备，确认托盘或菜单栏有彩色数字 `1–8`。
 2. 切换到目标应用，观察当前层变化；也可从 Bridge 菜单手选层。
 3. 打开“分层按键设置…”，选择 **12E4 / Xbox → 应用层 → 控件**。未自定义的控件使用该层默认值。
-4. 从菜单打开“使用说明”查看对应平台的在线手册；“快捷键总表”打开新域名首页。Mac 的“离线说明”打开应用内副本，断网时可用。
+4. 从菜单打开“使用说明”查看对应平台的在线手册；“快捷键总表”打开对应平台的快捷键页。手册顶部先选 Windows / Mac，再选 12E4 / 手柄 / 快捷键。Mac 的“离线说明”打开应用内副本，断网时可用。
 
 12E4 短按在松开时执行；长按约 650 毫秒切换任务或会话。键 `1、2、3、5、6、7` 对应六个 Codex 任务槽，`9、10、11、12、8、4` 对应六个 tmux 灯位。按住键 12 再按其他键是应用启动组合。长按和应用组合固定，普通短按与旋钮动作可在设置里覆盖。两端的应用启动来源和 tmux 编号规则不同，以对应平台手册为准。
 

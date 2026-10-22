@@ -242,31 +242,22 @@
     .controller-note { color: var(--muted); font-size: 13px; line-height: 1.65; padding: 0 14px; }
     @media(max-width:700px) { .device-switch span { width:100%; margin:4px 0; } .xbox-table th,.xbox-table td { padding:11px 8px; font-size:12px; } .xbox-table th:first-child { width:25%; } }
   </style>
-<link rel="stylesheet" href="manual-navigation.css?v=20261019-shortcuts">
+<link rel="stylesheet" href="manual-navigation.css?v=20261022-platform-sections">
 </head>
-<body data-manual-page="windows">
+<body data-manual-page="windows" data-manual-root="./">
   <div class="shell">
-    <nav class="topbar" aria-label="层导航">
-      <div class="brand">
-        <span class="brand-mark">12E4</span>
-        <span><strong>CXT 功能手册</strong><small>12E4 · Xbox · 8 层</small></span>
-      </div>
-      <div class="layer-nav" id="layerNav"></div>
-      <div class="top-actions">
-        <button class="icon-button" id="printButton" title="打印或另存为 PDF" aria-label="打印">⌁</button>
-      </div>
-    </nav>
-    <nav class="platform-nav" aria-label="平台说明">
-      <a data-manual-page="windows" data-manual-base="./" href="./" aria-current="page">Windows 键盘 / 手柄</a>
-      <a id="otherPlatform" data-manual-page="mac" data-manual-base="mac/" href="mac/">Mac 键盘 / 手柄</a>
-      <a data-manual-page="tmux" data-manual-base="mac/tmux.html" href="mac/tmux.html">tmux / Karabiner</a>
-      <a data-manual-page="shortcuts" data-manual-base="mac/shortcuts.html" href="mac/shortcuts.html">快捷键总表</a>
-    </nav>
+    <header class="manual-header">
+  <div class="manual-heading"><div class="brand"><span class="brand-mark">12E4</span><span><strong>CXT 功能手册</strong><small>Windows · 12E4 / 手柄</small></span></div><button type="button" class="manual-print" id="printButton">打印 / 存 PDF</button></div>
+  <nav class="manual-selector" aria-label="手册导航">
+    <div class="manual-choice-row"><span class="manual-choice-label" id="platformLabel">系统</span><div class="platform-nav" role="group" aria-labelledby="platformLabel"><a data-manual-platform="windows" href="./index.html" aria-current="true">Windows</a><a id="otherPlatform" data-manual-platform="mac" href="./mac/index.html">Mac</a></div></div>
+    <div class="manual-choice-row"><span class="manual-choice-label" id="sectionLabel">内容</span><div class="section-nav" role="group" aria-labelledby="sectionLabel"><a data-manual-section="keyboard" href="index.html?device=keyboard" aria-current="true">12E4</a><a data-manual-section="xbox" href="index.html?device=xbox">手柄</a><a data-manual-section="shortcuts" href="shortcuts.html">快捷键</a></div></div>
+  </nav>
+</header>
 
-    <header class="hero">
+    <header class="hero device-hero">
       <div>
         <div class="eyebrow">Personal Control Surface</div>
-        <h1>12E4 + Xbox<br>Windows 八层功能手册</h1>
+        <h1><span class="keyboard-only">12E4 键盘</span><span class="xbox-only">Xbox 手柄</span><br>Windows 八层功能手册</h1>
         <p class="lead">键盘与手柄共用 Codex、终端、Notion 等八个应用层，分别保存按键映射。按设备和层查看默认功能；自定义覆盖以本机 Bridge 的“分层按键设置”为准。</p>
         <div class="hero-tags">
           <span class="tag">自动随前台应用切层</span>
@@ -275,7 +266,7 @@
           <span class="tag">Xbox 蓝牙 / USB · 同层独立映射</span>
         </div>
       </div>
-      <aside class="quick-card">
+      <aside class="quick-card keyboard-only">
         <h2>12E4 切换任务栏应用 · 按住键12，再按</h2>
         <div class="chord">
           <span><b>1</b> → Win+1</span><span><b>2</b> → Win+2</span><span><b>3</b> → Win+3</span><span><b>4</b> → Win+4</span>
@@ -294,11 +285,8 @@
     </div>
 
     <section id="layerSection" aria-label="当前设备与应用层">
-      <div class="device-switch" role="group" aria-label="选择设备">
-        <button type="button" data-device="keyboard" aria-pressed="true">12E4 键盘</button>
-        <button type="button" data-device="xbox" aria-pressed="false">Xbox 手柄</button>
-        <span>这里显示默认映射；本机覆盖以 Bridge 设置为准。</span>
-      </div>
+      <p class="mapping-note">这里显示默认映射；本机覆盖以 Bridge 设置为准。</p>
+      <div class="layer-nav manual-layers" id="layerNav" role="group" aria-label="选择应用层"></div>
       <div class="layer-heading">
         <div><h2 id="layerTitle"></h2><p id="layerApps"></p></div>
         <div class="indicator-pill"><span class="dot" id="indicatorDot"></span><span id="indicatorText"></span></div>
@@ -346,7 +334,7 @@
       </ul></div></details>
     </section>
 
-    <section class="section" id="controllerCheck">
+    <section class="section xbox-only" id="controllerCheck">
       <div class="section-header"><h2>Windows 实测 · 按顺序确认</h2><p>Windows 版本已有编译和纯状态回归；原生 Windows 运行、蓝牙设备与各应用操作尚待实机验收。</p></div>
       <details open><summary>先确认连接，再测鼠标与分层</summary><div class="detail-body"><ol>
         <li><strong>连接与回中：</strong>在 Windows 蓝牙设置中连接 Xbox 手柄，按 Xbox 键唤醒；松开所有按钮、扳机和摇杆。托盘菜单应显示 Xbox 已连接。若显示暂停，先在普通应用中从托盘恢复。</li>
@@ -359,7 +347,7 @@
       </ol></div></details>
     </section>
 
-    <section class="section">
+    <section class="section keyboard-only">
       <div class="section-header"><h2>ChatGPT 六任务状态灯</h2><p>所有层中，键1、2、3、5、6、7始终对应任务1–6并显示实时状态；当前层指示灯另外叠加显示。</p></div>
       <div class="status-grid">
         <div class="status" style="--status:#ffffff"><span class="status-light" style="border:1px solid #d0d5dd"></span><strong>白色 · 空闲 / 已查看</strong><small>任务没有未处理状态。</small></div>
@@ -370,7 +358,7 @@
       </div>
     </section>
 
-    <section class="section">
+    <section class="section keyboard-only">
       <div class="section-header"><h2>层指示灯位置与颜色</h2><p>L1–L8依次在键1–8双呼吸；两组六个实时状态灯仍在所有层保留，提示结束后立即恢复被覆盖的任务或 session 状态。</p></div>
       <div class="layer-map" id="layerMap"></div>
     </section>
@@ -380,7 +368,7 @@
       <details>
         <summary>自动切层与手动覆盖</summary>
         <div class="detail-body"><ul>
-          <li>托盘“使用说明（Windows / Mac）”打开此域名下的 Windows 手册，可从顶部切换到 Mac；“快捷键总表”打开 <a href="https://cxt12e4.11166666.xyz/">新域名首页</a>。下载源码中的 <code>docs/cxt12e4-manual/index.html</code> 也可直接在浏览器离线打开。快捷键总表记录维护者的 Mac 配置，不是 Windows Bridge 的默认键位。</li>
+          <li>托盘“使用说明（Windows / Mac）”打开此域名下的 Windows 手册，可从顶部切换到 Mac；“快捷键总表”打开 <a href="shortcuts.html">Windows 快捷键</a>。下载源码中的 <code>docs/cxt12e4-manual/index.html</code> 也可直接在浏览器离线打开。顶部先选系统，再选 12E4、手柄或快捷键；Mac 的个人多屏配置单独放在 Mac 下。</li>
           <li>Bridge 根据前台进程自动选择专用层；L5“3D建模 / Blender”只精确匹配 <code>blender.exe</code>。浏览器和未匹配应用统一进入 L8“通用 / 浏览器”，全层固定绑定，没有浏览器子配置。用户只看到L1–L8，内部索引0和手册 <code>?layer=0</code> 仍兼容显示L8。</li>
           <li>新电脑不能只插键盘：从 <a href="https://github.com/zhangyu0806/CXT12E4-Bridge">项目仓库</a>取得默认 main 分支源码后运行 <code>install\windows-home\Install-Cxt12E4Bridge.ps1</code>。安装器先本机编译和自测，再备份旧版、安装用户级 Bridge、设置开机启动并验证唯一进程；使用tmux与Agent状态灯时增加 <code>-InstallWslIntegrations</code>。它不刷固件，也不携带凭据或当前电脑的私人配置。</li>
           <li>Windows Terminal 自动进入 L2，但程序无法判断当前标签是否真的在运行 tmux；必要时可手动切层。</li>
@@ -436,7 +424,7 @@
     </footer>
   </div>
 
-  <script src="manual-navigation.js?v=20261022-domain"></script>
+  <script src="manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
     const layers = [
       {
@@ -1483,9 +1471,9 @@
     const layerHelp = document.getElementById('layerHelp');
     const layerMap = document.getElementById('layerMap');
 
-    document.querySelectorAll('[data-device]').forEach(button => button.addEventListener('click', () => {
-      currentDevice = button.dataset.device; showLayer(current);
-    }));
+    window.ManualNavigation.onDeviceChange(device => {
+      currentDevice = device; showLayer(current);
+    });
 
     const orderedLayers = [...layers].sort((left, right) => left.n - right.n);
     orderedLayers.forEach(layer => {
@@ -1558,7 +1546,7 @@
 
       document.getElementById('keyboardWorkspace').hidden = currentDevice !== 'keyboard';
       document.getElementById('xboxPanel').hidden = currentDevice !== 'xbox';
-      document.querySelectorAll('[data-device]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.device === currentDevice)));
+
       const xboxMappings = document.getElementById('xboxMappings');
       xboxMappings.replaceChildren();
       xboxProfiles[String(number)].forEach(mapping => {
