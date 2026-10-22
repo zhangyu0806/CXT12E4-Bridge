@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="configuration-revision" content="20261022-window-readiness">
+<meta name="configuration-revision" content="20261022-fullscreen-notes">
 <meta name="color-scheme" content="light">
 <title>我的快捷键总表 · CXT12E4 Mac 使用手册</title>
 <style>
@@ -32,11 +32,11 @@
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>R</kbd></th><td>恢复当前窗口保存的位置</td><td>恢复本轮调整前的位置；与 Win + ↑ 的即时尺寸分别保存。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>1 / 2 / 3 / 4</kbd></th><td>移到对应编号的显示器</td><td>编号按从左到右、同列从上到下排序；缺少该屏时不执行。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>Space</kbd></th><td>打开布局菜单</td><td>单屏最大化、四角四分之一、居中 80%、移屏、四套固定方案与整套撤销；Esc 取消。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>↑</kbd></th><td>当前屏最大化</td><td>保存此前尺寸；再次按保持最大化。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>↑</kbd></th><td>当前屏最大化</td><td>保留其他屏幕上的窗口和应用自身工具栏；保存此前尺寸，再次按保持最大化。若已进入原生全屏，先按 F11 退出。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>↓</kbd></th><td>恢复尺寸 / 最小化</td><td>最大化后先恢复，再按最小化；普通窗口直接最小化。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>← / →</kbd></th><td>当前屏左半 / 右半</td><td>单窗口操作。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>方向键</kbd></th><td>移到相应方向的相邻显示器</td><td>普通窗口尽量保持尺寸；最大化窗口继续最大化。原生全屏需先退出。</td></tr>
-</tbody></table><div class="more"><p>本次核对的编号：<b>1 左上 LG · 2 左下 27C1U-D · 3 右竖 U2777B · 4 iPad Sidecar</b>。插拔或重新排列后编号可能变化；L 与 Z/X/C/S 使用固定显示器身份。</p><p>四分之一与居中目前从 <b>三键 + Space</b> 菜单选择。</p></div></section>
+</tbody></table><div class="more"><p>本次核对的编号：<b>1 左上 LG · 2 左下 27C1U-D · 3 右竖 U2777B · 4 iPad Sidecar</b>。插拔或重新排列后编号可能变化；L 与 Z/X/C/S 使用固定显示器身份。</p><p>四分之一与居中目前从 <b>三键 + Space</b> 菜单选择。</p><p><b>原生全屏与多屏：</b>F11 使用 macOS 全屏空间；Win + ↑ 和三键 + A 使用桌面窗口铺满。左侧跨屏要求关闭“显示器具有单独的空间”，因此原生全屏会影响其他屏幕的可见窗口。开启独立空间会使左侧跨屏及 Z 预设无法使用。</p></div></section>
 <section class="section" id="presets"><header class="section-head"><h2>一键固定布局</h2><p>同时摆好常用窗口。Z/X/C/S 全局可触发，完成后聚焦 Codex。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>Z</kbd></th><td>跨屏专注</td><td>Codex 跨左侧上下双屏；Notion 铺满右侧竖屏。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>X</kbd></th><td>终端开发</td><td>左上 Codex；左下 Ghostty；右侧 Safari。</td></tr>
@@ -62,7 +62,7 @@
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>Shift</kbd> + <kbd>Tab</kbd></th><td>反向切换窗口</td><td>同上；切换器显示时 Esc 取消。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>F4</kbd></th><td>关闭当前窗口</td><td>保留应用自己的保存提示，不强制退出整个应用。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>F2 / Fn</kbd> + <kbd>F2</kbd></th><td>重命名所选项目</td><td>Finder 中。终端内 F2 保留会话切换。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>F11</kbd></th><td>切换原生全屏</td><td>应用需支持 Ctrl + Command + F；不是 tmux 第 11 会话。</td></tr>
+<tr data-shortcut data-search="全屏 其他屏幕 隐藏 黑屏 Spaces 独立空间"><th scope="row"><kbd>F11</kbd></th><td>切换 macOS 原生全屏</td><td>应用需支持 Ctrl + Command + F；不是 tmux 第 11 会话。当前跨屏设置关闭了“显示器具有单独的空间”，进入原生全屏会切换共享空间，其他屏幕的普通窗口暂时不可见，再按退出。只想铺满当前屏且保留其他屏幕时，退出全屏后用 Win + ↑。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>F12</kbd></th><td>打开开发者工具</td><td>Arc / Chrome / Safari；Safari 需允许开发工具。tmux 内另有用途。</td></tr>
 </tbody></table></section>
 <section class="section" id="caps"><header class="section-head"><h2>Caps 与输入</h2><p>T90 的 Caps 在普通应用相当于 Command，在终端相当于 Ctrl。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
@@ -176,7 +176,7 @@
 <tr data-shortcut><th scope="row"><kbd>Xbox RT + L3</kbd></th><td>当前层专用动作</td><td>按住 RT，再按左摇杆：Codex 聚焦输入框、tmux 缩放 pane、Notion 快速搜索；L3 单按仍打开设置。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Xbox Menu ≡ 短按 / 长按</kbd></th><td>任务与会话面板 / 暂停或恢复手柄</td><td>长按约 0.85 秒；完整映射见手柄页。</td></tr>
 </tbody></table><div class="more"><p><a href="index.html?device=keyboard&amp;layer=1">12E4 完整八层按键与旋钮图 →</a>　<a href="index.html?device=xbox&amp;layer=1">Xbox 完整八层按键图 →</a></p><p>短按、长按、键 12 组合与旋钮操作互斥；重叠输入取消后，松开全部键再操作。切任务时会唤回目标应用，已有跨屏窗口由窗口管理配置维护。</p></div></section></div><p id="empty" hidden>没有匹配的快捷键。试试动作名称，或切回“全部”。</p>
-<footer><p>布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。数字快启更新：2026-10-21，槽 5 改为 Claude 桌面版，后续应用顺延至槽 10。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
+<footer><p>全屏说明更新：2026-10-22，补充 F11 在共享空间下对其他屏幕的影响，以及 Win + ↑ 单屏最大化的区别。布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。数字快启更新：2026-10-21，槽 5 改为 Claude 桌面版，后续应用顺延至槽 10。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
 </main><script src="../manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
 const input=document.getElementById('searchInput'), sections=[...document.querySelectorAll('.section')], rows=[...document.querySelectorAll('tbody tr[data-shortcut]')], filters=[...document.querySelectorAll('[data-filter]')];
