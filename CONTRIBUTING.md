@@ -22,6 +22,8 @@ python3 -m unittest discover -s integrations/tmux/macos -p 'test_*.py'
 
 测试使用临时目录和独立 tmux socket，但会先检查本机依赖。缺少工具时，不应把跳过的集成测试计为通过。
 
+修改可选 Hammerspoon 窗口配置时，先运行 `python3 integrations/hammerspoon/tests/run.py`（Python 3 + Lua 5.4，或 macOS 上已安装的 Hammerspoon）。测试使用模拟窗口，不连接桌面；还应使用自己的显示器配置验证全屏、跨屏、撤销和实际按键，明确区分程序触发与实体设备验收。不要提交真实显示器 UUID、个人 init.lua、运行日志或窗口快照。
+
 修改手册时运行：
 
 ```sh

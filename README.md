@@ -13,12 +13,13 @@ Application-aware keyboard and controller bridges for Windows and macOS, with a 
 | Windows Bridge | 托盘程序，读取键盘和 XInput 手柄，在本机执行快捷键、切换任务与控制状态灯。 |
 | macOS Bridge | 原生菜单栏程序，配合 Karabiner-Elements 接收键盘输入，通过 GameController 读取手柄。 |
 | QMK keymap | 针对 `cxt_studio/12e4` 的自定义固件源码，发送私有触发码并接收灯光状态。 |
+| 可选 Hammerspoon 配置 | 三屏固定布局、窗口准备与撤销恢复；附隔离测试，需配置自己的显示器。 |
 | 可选终端集成 | 为 tmux、Claude Code、OpenCode、Grok 连接会话和任务状态。 |
 | HTML 手册 | 按设备、应用层查看映射；可搜索、打印，也随 Mac 应用附带离线副本。 |
 
 键盘固件负责输入协议和灯光，桌面 Bridge 负责本机操作；在线手册不代替本机 Bridge。已有兼容固件时，安装或更新 Bridge 无需重新刷写。
 
-“个人快捷键参考”记录维护者的 T90 / Karabiner / Hammerspoon / tmux 环境，包括三屏布局、Caps 和应用数字快启；这些是配置示例，**不会随 Bridge 安装自动部署**。
+“个人快捷键参考”记录维护者的 T90 / Karabiner / Hammerspoon / tmux 环境，包括三屏布局、Caps 和应用数字快启；这些是配置示例，**不会随 Bridge 安装自动部署**。窗口管理源码、显示器配置方法和本次“窗口尚未就绪”修复见 [Hammerspoon 可选集成](integrations/hammerspoon/README.md)；Caps / T90 Karabiner 映射及个人 tmux 配置仍需另行配置。
 
 ## 获取源码
 
@@ -131,6 +132,7 @@ src/Cxt1024Bridge/              Windows Bridge（历史目录名）
 src/Cxt12E4Mac/                 macOS Bridge 与 Python helper
 firmware/cxt12e4_chatgpt_bridge/ QMK keymap 和灯光协议
 integrations/                  Agent / tmux 状态集成
+integrations/hammerspoon/      可选 Mac 窗口布局、恢复与隔离测试
 install/windows-home/          Windows 安装、验证和卸载
 install/macos/                 Mac 构建、安装与 tmux 适配
 install/wsl-home/              WSL 状态集成安装

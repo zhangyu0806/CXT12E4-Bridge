@@ -1,0 +1,92 @@
+{
+  "defaultPreset": "focus",
+  "roles": {
+    "leftTop": "REPLACE_WITH_LEFT_TOP_UUID",
+    "leftBottom": "REPLACE_WITH_LEFT_BOTTOM_UUID",
+    "right": "REPLACE_WITH_RIGHT_UUID"
+  },
+  "apps": {
+    "codex": "com.openai.codex",
+    "browser": "com.apple.Safari",
+    "notes": "notion.id",
+    "terminal": "com.mitchellh.ghostty",
+    "claude": "com.anthropic.claudefordesktop"
+  },
+  "presets": [
+    {
+      "id": "office",
+      "title": "三屏办公",
+      "description": "左上 Codex · 左下浏览器 · 右侧 Notion",
+      "placements": [
+        {
+          "app": "codex",
+          "role": "leftTop"
+        },
+        {
+          "app": "browser",
+          "role": "leftBottom"
+        },
+        {
+          "app": "notes",
+          "role": "right"
+        }
+      ]
+    },
+    {
+      "id": "terminal",
+      "title": "终端开发",
+      "description": "左上 Codex · 左下 Ghostty · 右侧浏览器",
+      "placements": [
+        {
+          "app": "codex",
+          "role": "leftTop"
+        },
+        {
+          "app": "terminal",
+          "role": "leftBottom"
+        },
+        {
+          "app": "browser",
+          "role": "right"
+        }
+      ]
+    },
+    {
+      "id": "focus",
+      "title": "跨屏专注",
+      "description": "Codex 跨左侧上下两屏 · 右侧 Notion",
+      "placements": [
+        {
+          "app": "codex",
+          "roles": [
+            "leftTop",
+            "leftBottom"
+          ]
+        },
+        {
+          "app": "notes",
+          "role": "right"
+        }
+      ]
+    },
+    {
+      "id": "claude",
+      "title": "Codex + Claude",
+      "description": "左上 Codex · 左下 Claude 桌面版 · 右侧 Notion",
+      "placements": [
+        {
+          "app": "codex",
+          "role": "leftTop"
+        },
+        {
+          "app": "claude",
+          "role": "leftBottom"
+        },
+        {
+          "app": "notes",
+          "role": "right"
+        }
+      ]
+    }
+  ]
+}

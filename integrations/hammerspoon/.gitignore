@@ -1,0 +1,4 @@
+# Machine-local choices and generated helper; keep only the example and source.
+/workspace_layouts.json
+/helpers/menu-bar-inset
+__pycache__/

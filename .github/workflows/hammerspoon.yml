@@ -1,0 +1,29 @@
+name: Hammerspoon layouts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'integrations/hammerspoon/**'
+      - '.github/workflows/hammerspoon.yml'
+  pull_request:
+    paths:
+      - 'integrations/hammerspoon/**'
+      - '.github/workflows/hammerspoon.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.4 for isolated mocks
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
+      - name: Test window preparation, placement and undo without desktop access
+        run: python3 integrations/hammerspoon/tests/run.py
