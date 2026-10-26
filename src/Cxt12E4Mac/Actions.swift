@@ -275,7 +275,9 @@ final class Actions {
         switch c.layer {
         case 1:
             guard c.bundle=="com.openai.codex" else{fail("ChatGPT 桌面版尚未提供已验证的相邻任务切换");return}
-            prepareTaskNavigation();key(forward ? "right":"left",[cmd,opt],c)
+            // Use Codex's primary sidebar binding. Cmd+Option+arrows can be
+            // captured by a music player's global previous/next-track hotkeys.
+            prepareTaskNavigation();key(forward ? "]":"[",[cmd,opt],c)
         case 2:tmux(forward ? "next-window":"previous-window",c)
         case 3:key(forward ? "]":"[",cmd,c)
         case 5:encoder(1,forward ? 2:0,c)
@@ -371,7 +373,7 @@ final class Actions {
             if c.bundle=="com.openai.chat" && (n==1 || n==2) {fail("ChatGPT 桌面版不使用 Codex 的型号和任务快捷键");return}
             switch n {
             case 1:reasoning(c,delta:press ? 0:(cw ? 1:-1),preset:press ? "ultra":nil)
-            case 2:if press {reasoning(c,delta:0,preset:"high")} else {prepareTaskNavigation();key(cw ? "right":"left",[cmd,opt],c)}
+            case 2:if press {reasoning(c,delta:0,preset:"high")} else {navigate(cw,c)}
             case 3:if press {focusComposer(c)} else {key(cw ? "right":"left",opt,c)}
             case 4:if !click(["滚动到底部","跳转到最新消息","Scroll to bottom","Jump to latest"],c,contains:true) {key("end",cmd,c)}
             default:break

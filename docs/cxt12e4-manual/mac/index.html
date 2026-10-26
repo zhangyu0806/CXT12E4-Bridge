@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="configuration-revision" content="20261026-model-controls">
+  <meta name="configuration-revision" content="20261026-k2-navigation">
   <title>CXT12E4 + Xbox · Mac 八层功能手册</title>
   <style>
     :root {
@@ -350,10 +350,10 @@
 <details><summary>启动、权限与输入</summary><div class="detail-body"><ul><li>菜单栏“使用说明”打开本页的在线版本；“快捷键总表”打开 <a href="https://cxt12e4.11166666.xyz/">新域名首页</a>。“离线说明”打开应用内随版本附带的说明与完整手册，断网时可用。在线版更新与已安装版本可能不同。</li><li>首次安装：从 <a href="https://github.com/zhangyu0806/CXT12E4-Bridge">项目仓库</a>获取源码，按 Mac 安装说明执行 <code>./install/macos/install.sh</code>。需要 macOS 13+、Xcode Command Line Tools、Python 3 和已启用的 Karabiner；tmux 另需对应依赖。三屏布局、Caps 与普通键盘数字快启是独立配置示例，不由 Bridge 安装器自动部署。</li><li>“应用程序”中的 CXT12E4 Bridge 登录时自动启动。菜单栏与 Win11 一致，使用八层对应颜色的正方形色块，中央粗体数字 1–8 显示当前层；L1、L4 白字，其余黑字。悬停显示层名、自动或手动模式及连接状态；菜单勾选标明当前层及是否自动切层，也可手选层。</li><li>开启 Bridge 的辅助功能和输入监控，并保持 Karabiner 运行。12E4 专用输入规则仅匹配此设备。</li><li>短按在松开时执行；长按650ms进入对应任务或会话，长按后不再追加短按。键12组合沿用原应用位。普通按键组合与旋钮私有标记互斥，重叠或异常报告会取消本轮，释放全部按键后再操作。</li><li>12E4 默认 K4 在各层发送加速纵向滚轮，按下功能依当前层；分层设置可覆盖短按与旋钮动作，长按和键12应用组合保持固定。</li></ul></div></details>
 <details open class="xbox-only"><summary>Xbox 分层设置与暂停</summary><div class="detail-body"><ul><li>菜单栏 → “分层按键设置…” → 选择 12E4 或 Xbox → 选择 L1–L8 → 修改对应操作。两设备共用当前层，各层覆盖互相独立；未设置的控件使用该层默认值，“恢复本层默认”会重置<strong>整个当前设备当前层</strong>，包括该层其他自定义项；若只想改四个面键，请单独修改 A / B / X / Y。升级会保留已有自定义覆盖，写入配置的旧映射不会被默认更新替换。</li><li>左摇杆默认鼠标、右摇杆默认双向滚动；Blender 层右摇杆默认旋转视角。设置页可改摇杆模式、死区、鼠标速度、滚动速度、LT 精细倍率及滚动方向。</li><li><strong>设置窗口内：</strong>映射修改立即保存；手柄 A 完成，B 或 Menu 关闭，都会先保存并校验未保存的参数，输入有误则保留窗口和错误提示。B 在这里不是撤销；要放弃未保存参数，请先点“撤销修改”。方向键交给当前输入框或下拉框，Menu 不会再叠开任务选择面板。</li><li>手柄 Menu 短按打开两组选择：Codex 最近任务、tmux 已有 session；方向键移动，A 确认，B 或 Menu 取消。所选项按稳定身份打开，不会随最近列表刷新而跳到另一个槽位。没有应用启动组，也不会新建 tmux 会话。切去其他应用会自动关闭选择面板，不抢回焦点。</li><li>手柄 Menu 长按或菜单“暂停 / 恢复 Xbox”只暂停手柄。也可用“在当前应用暂停 / 恢复 Xbox”记录当前应用，或在设置里填实际游戏的 Bundle ID。默认列表仅含 Steam 和 Games 启动器，不等于自动识别全部游戏；游戏进程需单独添加，或进入游戏前手动暂停。处于应用暂停名单时，连 Menu 也保留给前台应用；恢复请用菜单栏或离开该应用。普通应用中的手动暂停仍可长按 Menu 恢复。</li><li>手柄按键未独占：暂停名单之外的前台游戏仍可能收到原始输入。Xbox、View、分享三键由系统处理，本版本不接管。X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已实机通过；精细移动、跨层手感与本次新增的 R3 Tab 仍需实测。</li></ul></div></details>
 <details><summary>tmux 六灯与会话</summary><div class="detail-body"><ul><li>终端输入 <code>tmux</code> 连接已有会话；没有会话时不会自动新建，需要时显式输入 <code>tmux new</code>。自动恢复和开机启动仍关闭。</li><li>键9、10、11、12、8、4依次对应 tmux 灯位1–6，长按切入对应的现有会话。</li><li>01–06 开头的会话固定对应灯位；默认数字名或普通项目名自动分配空闲灯位，已有分配不会因其他会话退出而前移，重启 Bridge 后保留。</li><li>没有会话的灯位熄灭；普通 shell 空闲为白灯。重复固定编号会关闭对应灯位并拒绝切换。</li><li>已运行的 Claude Code / OpenCode 需重启一次才能加载状态 hooks。白为空闲，蓝为运行，绿为新完成，黄为等待，红为真正错误；主动停止任务恢复白色，不作为错误。</li></ul></div></details>
-<details><summary>验证范围与日志</summary><div class="detail-body"><ul><li>本地 Codex 任务若在电脑关机或重启前仍记为运行、且没有结束事件，Bridge 会根据本机启动时间将这次中断恢复为白色；已有完成记录按是否已查看保持绿色或白色。Bridge 不凭运行时长判定完成。同一次开机期间若缺少结束记录，仍无法可靠确认任务是否已结束。</li><li>以下记录针对维护者当时的设备、应用版本与配置。新安装仍需按本页清单逐项确认；自动检查与实机操作是不同的验证。</li><li>已实机确认侧栏、K4 滚动、键12+2 启动 Ghostty、长按任务键返回 Codex，以及 tmux 白灯和长按切换。</li><li>2026-10-26 用户确认 K1 / K2 已恢复；这次反馈针对当时正在运行的版本，兼容加固另按当前版本验证。模型控制精确识别 6.1 Sol、分离强度与权限；旧版自动确认的验证不代表当前权限行为已验收。Xbox 的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已于 2026-10-20 实机通过；本次新增的 Codex R3 Tab、其他分层操作与手感仍需逐项确认。</li><li>截至 2026-10-09，Mac tmux 适配已通过 78 项自动检查，包括快照恢复后的 Agent 重启及裸 tmux 连接行为。配置热加载检查确认已有面板及其进程保留。普通键盘的按键协议与实机范围见 <a href="tmux.html">tmux 验证说明</a>。</li><li>运行日志与状态位于 <code>~/Library/Application Support/CXT12E4Bridge/</code>。本次没有改键盘固件，接回 Windows 可继续使用原 Bridge。</li></ul></div></details></section>
+<details><summary>验证范围与日志</summary><div class="detail-body"><ul><li>本地 Codex 任务若在电脑关机或重启前仍记为运行、且没有结束事件，Bridge 会根据本机启动时间将这次中断恢复为白色；已有完成记录按是否已查看保持绿色或白色。Bridge 不凭运行时长判定完成。同一次开机期间若缺少结束记录，仍无法可靠确认任务是否已结束。</li><li>以下记录针对维护者当时的设备、应用版本与配置。新安装仍需按本页清单逐项确认；自动检查与实机操作是不同的验证。</li><li>已实机确认侧栏、K4 滚动、键12+2 启动 Ghostty、长按任务键返回 Codex，以及 tmux 白灯和长按切换。</li><li>2026-10-26 已实机确认 K2 双向切换任务且不再切歌；模型菜单读取已验证。手柄 LB / RB 共用相同切任务操作，手柄实机效果仍需单独确认。模型控制精确识别 6.1 Sol、分离强度与权限；旧版自动确认的验证不代表当前权限行为已验收。Xbox 的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已于 2026-10-20 实机通过；本次新增的 Codex R3 Tab、其他分层操作与手感仍需逐项确认。</li><li>截至 2026-10-09，Mac tmux 适配已通过 78 项自动检查，包括快照恢复后的 Agent 重启及裸 tmux 连接行为。配置热加载检查确认已有面板及其进程保留。普通键盘的按键协议与实机范围见 <a href="tmux.html">tmux 验证说明</a>。</li><li>运行日志与状态位于 <code>~/Library/Application Support/CXT12E4Bridge/</code>。本次没有改键盘固件，接回 Windows 可继续使用原 Bridge。</li></ul></div></details></section>
     <footer>
       <span>CXT 12E4 + Xbox · macOS Bridge 配置说明</span>
-      <span>更新：2026-10-26 · 修订：20261026-model-controls · macOS · 配置源：Mac Bridge / Profiles.swift / winsettings</span>
+      <span>更新：2026-10-26 · 修订：20261026-k2-navigation · macOS · 配置源：Mac Bridge / Profiles.swift / winsettings</span>
     </footer>
   </div>
 
@@ -534,11 +534,11 @@
       ]
     ],
     "notes": [
-      "K1 转动沿 Sol、Astra 的轻度至最高档位切换，精确支持 GPT-6 Sol、GPT-6.1 Sol、GPT-6 Astra；从 6.1 Sol 转到 Astra 后再返回会保留 6.1。K1 按下请求 Astra Ultra + Fast，K2 按下请求 Astra High + Standard。K2 转动独立切换前 / 后一个 Codex 聊天，不使用模型菜单。",
+      "K1 转动沿 Sol、Astra 的轻度至最高档位切换，精确支持 GPT-6 Sol、GPT-6.1 Sol、GPT-6 Astra；从 6.1 Sol 转到 Astra 后再返回会保留 6.1。K1 按下请求 Astra Ultra + Fast，K2 按下请求 Astra High + Standard。K2 逆时针切换上一个侧栏任务，顺时针切换下一个侧栏任务；与手柄 LB / RB 共用 ⌘+Option+[ / ]，避开全局切歌热键。旋转不使用模型菜单。",
       "升级或切换窗口后，模型控件可能短暂不可读。Bridge 会对当前窗口做有限等待；仍未确认型号或控件时停止并提示，不猜选。切回目标 Codex 聊天，等界面就绪后再操作。",
       "强度和执行权限分开处理。Ultra 如出现“使用完整访问权限”弹窗，由你在 Codex 中确认；Bridge 不自动授权。已具备权限时继续请求对应预设。",
       "ChatGPT 桌面版不接收 Codex 专属模型、相邻任务或面板快捷键。键9侧栏、键12新聊天仅尝试精确识别的控件。六个任务槽始终指向本机 Codex 任务，并非 ChatGPT 云端聊天列表。",
-      "2026-10-26 用户确认 K1 / K2 已恢复；兼容加固另按当前版本验证。手柄的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已实机通过；Codex R3 Tab 和其他分层操作仍需逐项确认。"
+      "2026-10-26 已实机确认 K2 双向切换任务且不再切歌；手柄 LB / RB 共用相同操作，仍需手柄实测。手柄的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已实机通过；Codex R3 Tab 和其他分层操作仍需逐项确认。"
     ]
   },
   {

@@ -15,7 +15,7 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>CXT12E4 Bridge</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>1.1</string>
-<key>CFBundleVersion</key><string>20261026</string>
+<key>CFBundleVersion</key><string>20261026.1</string>
 <key>LSUIElement</key><true/>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSInputMonitoringUsageDescription</key><string>读取 CXT12E4 专用键盘及 Xbox 手柄的按键与摇杆。</string>
