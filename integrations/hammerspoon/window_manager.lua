@@ -578,13 +578,44 @@ local function spanFrame(fullBounds)
     return pairFrame(pair, fullBounds, #list == 2)
 end
 
+-- Obsidian's live resize stops above a visible bottom Dock. Keep the menu-bar
+-- edge hidden, but target that usable bottom rather than rolling a valid
+-- two-display window back to one display. Other apps retain their full bounds.
+local function fullSpanTargetForWindow(win, frame)
+    local app = win and win:application()
+    if not frame or not app or not app.bundleID or app:bundleID() ~= "md.obsidian" then return frame end
+    local pair, physicalBottom = {}, frame.y + frame.h
+    for _, screen in ipairs(screens()) do
+        local full = screen:fullFrame()
+        if near(full.x, frame.x) and near(full.w, frame.w)
+            and full.y >= frame.y - tolerance and full.y + full.h <= physicalBottom + tolerance then
+            pair[#pair+1] = {screen=screen, full=full}
+        end
+    end
+    if #pair ~= 2 then return frame end
+    table.sort(pair, function(a, b) return a.full.y < b.full.y end)
+    if not near(pair[1].full.y, frame.y)
+        or not near(pair[1].full.y + pair[1].full.h, pair[2].full.y)
+        or not near(pair[2].full.y + pair[2].full.h, physicalBottom) then return frame end
+    local usable = usableFrame(pair[2].screen)
+    local bottom = math.min(physicalBottom, usable.y + usable.h)
+    if bottom >= physicalBottom - tolerance or bottom <= pair[2].full.y + tolerance then return frame end
+    local target = rect(frame)
+    target.h = bottom - target.y
+    return target
+end
+
 local function savedSpanFrame(win, action)
     local entry = getSaved(win)
     local pair = entry and unchangedSpanScreens(entry.spanScreens)
+    local frame, reason, base
     if pair and #pair == 2 and not hs.spaces.screensHaveSeparateSpaces() then
-        return pairFrame(pair, action == "fullspan", true)
+        frame, reason, base = pairFrame(pair, action == "fullspan", true)
+    else
+        frame, reason, base = spanFrame(action == "fullspan")
     end
-    return spanFrame(action == "fullspan")
+    if action == "fullspan" then frame = fullSpanTargetForWindow(win, frame) end
+    return frame, reason, base
 end
 
 local function fullSpan(win, force, intendedScreen)
@@ -780,7 +811,11 @@ local function workspaceOperation(win, spec, snapshot, callback)
         for _, screen in ipairs(screens()) do if screen:getUUID() == uuid then return screen end end
     end
     local function targetFrame()
-        if spec.span then return M.workspaceSpanFrame(spec.spanScreens, spec.fullBounds) end
+        if spec.span then
+            local frame, reason, base = M.workspaceSpanFrame(spec.spanScreens, spec.fullBounds)
+            if spec.fullBounds then frame = fullSpanTargetForWindow(win, frame) end
+            return frame, reason, base
+        end
         if spec.screenUUID then
             local screen = screenFor(spec.screenUUID)
             if not screen then return nil, "固定布局显示器已断开" end
