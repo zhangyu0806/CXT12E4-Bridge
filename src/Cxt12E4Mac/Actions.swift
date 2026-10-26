@@ -15,28 +15,51 @@ func axNodes(_ pid:pid_t)->[AXUIElement] {
     return q
 }
 
-func axSubtree(_ root:AXUIElement,limit:Int=180)->[AXUIElement] {
-    var nodes=[root],index=0
-    while index<nodes.count && nodes.count<limit {
-        if let children=axValue(nodes[index],"AXChildren") as? [AXUIElement] {nodes.append(contentsOf:children)}
-        index+=1
+func axSubtree(_ root:AXUIElement,limit:Int=180,until:Double=ProcessInfo.processInfo.systemUptime+0.8,allowPartial:Bool=false)->[AXUIElement] {
+    var queue=[root],nodes:[AXUIElement]=[],seen=Set<AXUIElement>(),index=0
+    while index<queue.count && nodes.count<limit && ProcessInfo.processInfo.systemUptime<until {
+        let node=queue[index];index+=1
+        guard seen.insert(node).inserted else{continue}
+        nodes.append(node)
+        if let children=axValue(node,"AXChildren") as? [AXUIElement] {queue.append(contentsOf:children)}
     }
-    return nodes.count<limit ? nodes:[]
+    return allowPartial || index==queue.count ? nodes:[]
 }
 
-func axPowerMenu(_ pid:pid_t)->[AXUIElement] {
-    guard var menu=axNodes(pid).first(where:{axString($0,"AXRole")=="AXMenuItem" && ["强度","Power"].contains(axLabel($0))}) else{return []}
-    for _ in 0..<6 {
+func axModelNodes(_ pid:pid_t,until:Double=ProcessInfo.processInfo.systemUptime+0.8)->[AXUIElement] {
+    // Reserve part of the caller's deadline for identifying/pressing controls.
+    // A long transcript must not consume the entire menu-opening budget.
+    let sampleUntil=min(until,ProcessInfo.processInfo.systemUptime+0.35)
+    let root=AXUIElementCreateApplication(pid);AXUIElementSetMessagingTimeout(root,0.12)
+    // Electron supports this opt-in; newer native shells may reject it. Read
+    // the focused window directly instead of treating a menu-bar-only tree as
+    // a complete page. Never enable EnhancedUserInterface or move the window.
+    _=AXUIElementSetAttributeValue(root,"AXManualAccessibility" as CFString,kCFBooleanTrue)
+    guard let value=axValue(root,"AXFocusedWindow"),CFGetTypeID(value)==AXUIElementGetTypeID() else{return []}
+    let window=unsafeBitCast(value,to:AXUIElement.self)
+    AXUIElementSetMessagingTimeout(window,0.12)
+    return axSubtree(window,limit:6000,until:sampleUntil,allowPartial:true)
+}
+
+func axPowerMenu(in nodes:[AXUIElement],until:Double)->[AXUIElement] {
+    guard var menu=nodes.first(where:{ProcessInfo.processInfo.systemUptime<until && axString($0,"AXRole")=="AXMenuItem" && ["强度","Power"].contains(axLabel($0))}) else{return []}
+    for _ in 0..<6 where ProcessInfo.processInfo.systemUptime<until {
         if let parent=axValue(menu,"AXParent"),CFGetTypeID(parent)==AXUIElementGetTypeID() {menu=unsafeBitCast(parent,to:AXUIElement.self)} else{break}
-        let nodes=axSubtree(menu)
+        if ["AXWindow","AXApplication"].contains(axString(menu,"AXRole")) {break}
+        let nodes=axSubtree(menu,until:until)
         // Ultra/Fast hides the model-list entry but retains the speed toggle.
-        if nodes.contains(where:{axString($0,"AXRole")=="AXMenuItem" && ["选择模型","Select model","启用快速模式","Enable fast mode","启用标准模式","Enable standard mode"].contains(axLabel($0))}) {return nodes}
+        if nodes.contains(where:{ProcessInfo.processInfo.systemUptime<until && axString($0,"AXRole")=="AXMenuItem" && ["选择模型","Select model","启用快速模式","Enable fast mode","启用标准模式","Enable standard mode"].contains(axLabel($0))}) {return nodes}
     }
     return []
 }
 
+func axPowerMenu(_ pid:pid_t)->[AXUIElement] {
+    let until=ProcessInfo.processInfo.systemUptime+0.8
+    return axPowerMenu(in:axModelNodes(pid,until:until),until:until)
+}
+
 func axUltraFullAccessDialog(_ pid:pid_t)->[AXUIElement] {
-    guard var ancestor=axNodes(pid).first(where:{axString($0,"AXRole")=="AXButton" && ["使用完整访问权限","Use full access","Use full access permissions"].contains(axLabel($0))}) else{return []}
+    guard var ancestor=axModelNodes(pid).first(where:{axString($0,"AXRole")=="AXButton" && ["使用完整访问权限","Use full access","Use full access permissions"].contains(axLabel($0))}) else{return []}
     for _ in 0..<7 {
         guard let parent=axValue(ancestor,"AXParent"),CFGetTypeID(parent)==AXUIElementGetTypeID() else{break}
         ancestor=unsafeBitCast(parent,to:AXUIElement.self)
@@ -513,17 +536,41 @@ final class Actions {
         return nil
     }
     func openPowerMenu(_ c:Foreground)->[AXUIElement] {
-        var menu=axPowerMenu(c.pid)
-        if !menu.isEmpty {return menu}
-        guard context.valid(c) else{return []}
-        if let selector=axNodes(c.pid).first(where:{axString($0,"AXRole")=="AXPopUpButton" && (ModelSetting.parse(axLabel($0)) != nil || ["选择强度","Select effort"].contains(axLabel($0)))}) {
-            AXUIElementPerformAction(selector,kAXPressAction as CFString)
-        } else {key("m",[ctrl,shift],c)}
-        for _ in 0..<4 {usleep(70000);menu=axPowerMenu(c.pid);if !menu.isEmpty {break}}
-        return menu
+        let until=ProcessInfo.processInfo.systemUptime+1.2
+        var opened=false,confirmed=false,reason="deadline",samples:[Int]=[]
+        defer {if !confirmed {log("model menu unavailable: \(reason), opened=\(opened), samples=\(samples)")}}
+        repeat {
+            guard context.current(c) else{reason="context changed before read";return []}
+            let nodes=axModelNodes(c.pid,until:until)
+            samples.append(nodes.count)
+            let menu=axPowerMenu(in:nodes,until:until)
+            guard context.current(c) else{reason="context changed after read";return []}
+            guard ProcessInfo.processInfo.systemUptime<until else{return []}
+            if !menu.isEmpty,context.valid(c) {confirmed=true;return menu}
+            if menu.isEmpty,!opened,nodes.contains(where:{ProcessInfo.processInfo.systemUptime<until && axString($0,"AXRole")=="AXPopUpButton" && (ModelSetting.parse(axLabel($0)) != nil || ["选择强度","Select effort"].contains(axLabel($0)))}) {
+                if ProcessInfo.processInfo.systemUptime<until,context.valid(c) {
+                    // The native shell can acknowledge AXPress without opening
+                    // this popup. Use its registered shortcut only after the
+                    // exact composer selector and active window are confirmed.
+                    key("m",[ctrl,shift],c)
+                    opened=true
+                }
+            }
+            // Opening is a toggle: send it once, then only read. A missing
+            // page must not send a blind shortcut into another input surface.
+            usleep(70000)
+        } while ProcessInfo.processInfo.systemUptime<until
+        return []
+    }
+    func clickModelControl(_ labels:[String],_ c:Foreground)->Bool {
+        guard context.valid(c) else{return false}
+        let nodes=axModelNodes(c.pid)
+        guard let control=nodes.first(where:{["AXButton","AXMenuItem","AXCheckBox","AXRadioButton"].contains(axString($0,"AXRole")) && labels.contains(axLabel($0))}),context.valid(c) else{return false}
+        return AXUIElementPerformAction(control,kAXPressAction as CFString) == .success
     }
     func stepPower(_ direction:Int,_ c:Foreground)->Bool {
         guard context.valid(c),let control=axPowerMenu(c.pid).first(where:{axString($0,"AXRole")=="AXMenuItem" && ["强度","Power"].contains(axLabel($0))}) else{return false}
+        guard context.valid(c) else{return false}
         _=AXUIElementSetAttributeValue(control,kAXFocusedAttribute as CFString,kCFBooleanTrue)
         let root=AXUIElementCreateApplication(c.pid)
         func isFocused()->Bool {
@@ -531,7 +578,11 @@ final class Actions {
             guard let focused=axValue(root,"AXFocusedUIElement"),CFGetTypeID(focused)==AXUIElementGetTypeID() else{return false}
             return CFEqual(focused,control)
         }
-        if !isFocused() {AXUIElementPerformAction(control,kAXPressAction as CFString);usleep(50000)}
+        if !isFocused() {
+            guard context.valid(c) else{return false}
+            AXUIElementPerformAction(control,kAXPressAction as CFString);usleep(50000)
+        }
+        guard context.valid(c) else{return false}
         guard isFocused() else{
             if let focused=axValue(root,"AXFocusedUIElement"),CFGetTypeID(focused)==AXUIElementGetTypeID() {let e=unsafeBitCast(focused,to:AXUIElement.self);log("Power focus: "+axString(e,"AXRole")+" "+axLabel(e))}
             return false
@@ -558,9 +609,10 @@ final class Actions {
         // This Codex version exposes Power as a keyboard-accessible menu item,
         // with the exact current model/effort in its live status announcement.
         var menu=openPowerMenu(c)
-        guard !menu.isEmpty else{fail("未找到 Codex 强度菜单");return}
+        guard context.valid(c) else{return}
+        guard !menu.isEmpty else{fail("Codex 模型菜单暂不可读，请停留在聊天页稍后重试");return}
         func unconfirmed(_ message:String) {
-            if axNodes(c.pid).contains(where:{["使用完整访问权限","Use full access"].contains(axLabel($0))}) {
+            if axModelNodes(c.pid).contains(where:{["使用完整访问权限","Use full access"].contains(axLabel($0))}) {
                 fail("请在 Codex 中自行确认权限；Bridge 未代为授权")
             } else {fail(message)}
         }
@@ -568,9 +620,9 @@ final class Actions {
         if let initial=initial,["GPT-6 Sol","GPT-6.1 Sol"].contains(initial.model) {rememberedSolModel=initial.model}
         guard let target=reasoningTarget(initial,delta:delta,preset:preset,solModel:rememberedSolModel) else{fail("当前型号或档位无法精确识别，请先选择支持的 Sol 或 Astra");return}
         if initial?.model != target.model {
-            guard click(["选择模型","Select model"],c) else{fail("未找到型号列表");return}
+            guard clickModelControl(["选择模型","Select model"],c) else{fail("未找到型号列表");return}
             usleep(130000)
-            guard click([target.model,String(target.model.dropFirst(4))],c) else{fail("未找到精确型号 \(target.model)");return}
+            guard clickModelControl([target.model,String(target.model.dropFirst(4))],c) else{fail("未找到精确型号 \(target.model)");return}
             usleep(130000);menu=openPowerMenu(c)
         }
         for _ in 0..<6 {
@@ -594,7 +646,7 @@ final class Actions {
             }
             guard let fast=fastState(menu) else{fail("无法识别 Codex 速度设置");return}
             if fast != desired {
-                guard click(desired ? enableFast:enableStandard,c) else{fail("无法设置 Codex 速度");return}
+                guard clickModelControl(desired ? enableFast:enableStandard,c) else{fail("无法设置 Codex 速度");return}
                 usleep(130000);menu=openPowerMenu(c)
             }
             guard fastState(menu)==desired && powerSetting(menu)==target else{fail("型号、强度或速度结果未确认");return}

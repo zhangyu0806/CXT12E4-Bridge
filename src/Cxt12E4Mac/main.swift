@@ -144,7 +144,14 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
         var window:AXUIElement?
         if AXIsProcessTrusted() {
             let e=AXUIElementCreateApplication(a.processIdentifier);AXUIElementSetMessagingTimeout(e,0.05)
-            if let v=axValue(e,"AXFocusedWindow"),CFGetTypeID(v)==AXUIElementGetTypeID() {window=unsafeBitCast(v,to:AXUIElement.self)}
+            var v:CFTypeRef?
+            let result=AXUIElementCopyAttributeValue(e,"AXFocusedWindow" as CFString,&v)
+            if result == .success,let v=v,CFGetTypeID(v)==AXUIElementGetTypeID() {window=unsafeBitCast(v,to:AXUIElement.self)}
+            else if result == .cannotComplete,a.processIdentifier==lastFront {
+                // A busy renderer timing out is not a window switch. Keep the
+                // last identity; each action still validates it before input.
+                window=axWindow
+            }
         }
         let windowChanged:Bool
         if let old=axWindow,let new=window {windowChanged = !CFEqual(old,new)} else {windowChanged = (axWindow != nil) != (window != nil)}
@@ -267,14 +274,12 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
     func dumpAX(openModel:Bool=false,modelList:Bool=false) {
         let c=contexts.get()
         work.async {
-            if openModel && c.layer==1 {
-                if let selector=axNodes(c.pid).first(where:{axString($0,"AXRole")=="AXPopUpButton" && (axLabel($0).hasPrefix("GPT-") || axLabel($0)=="选择强度")}), self.contexts.valid(c) {
-                    AXUIElementPerformAction(selector,kAXPressAction as CFString)
-                }
-                usleep(250000)
+            if openModel {
+                guard c.bundle=="com.openai.codex",!self.actions.openPowerMenu(c).isEmpty,self.contexts.valid(c) else{return}
             }
-            if modelList { _=self.actions.click(["选择模型","Select model"],c);usleep(150000) }
-            let controls=axNodes(c.pid).filter{["AXButton","AXSlider","AXCheckBox","AXPopUpButton","AXMenuItem","AXTextField","AXComboBox"].contains(axString($0,"AXRole"))}.map{["role":axString($0,"AXRole"),"label":axLabel($0),"help":axString($0,"AXHelp"),"identifier":axString($0,"AXIdentifier"),"value":["AXSlider","AXCheckBox"].contains(axString($0,"AXRole")) ? String(describing:axValue($0,"AXValue") ?? "" as CFString):"","min":String(describing:axValue($0,"AXMinValue") ?? "" as CFString),"max":String(describing:axValue($0,"AXMaxValue") ?? "" as CFString)]}
+            if modelList { _=self.actions.clickModelControl(["选择模型","Select model"],c);usleep(150000) }
+            let nodes=openModel ? axModelNodes(c.pid):axNodes(c.pid)
+            let controls=nodes.filter{["AXButton","AXSlider","AXCheckBox","AXPopUpButton","AXMenuItem","AXTextField","AXComboBox"].contains(axString($0,"AXRole"))}.map{["role":axString($0,"AXRole"),"label":axLabel($0),"help":axString($0,"AXHelp"),"identifier":axString($0,"AXIdentifier"),"value":["AXSlider","AXCheckBox"].contains(axString($0,"AXRole")) ? String(describing:axValue($0,"AXValue") ?? "" as CFString):"","min":String(describing:axValue($0,"AXMinValue") ?? "" as CFString),"max":String(describing:axValue($0,"AXMaxValue") ?? "" as CFString)]}
             if let data=try? JSONSerialization.data(withJSONObject:controls,options:[.prettyPrinted,.sortedKeys]) {try? data.write(to:support.appendingPathComponent("ax-controls.json"),options:.atomic)}
             if openModel {
                 let menu=axPowerMenu(c.pid).map{["role":axString($0,"AXRole"),"label":axLabel($0),"value":axString($0,"AXValue"),"help":axString($0,"AXHelp"),"roleDescription":axString($0,"AXRoleDescription")]}

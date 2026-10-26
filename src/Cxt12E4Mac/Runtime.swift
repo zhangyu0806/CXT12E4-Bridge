@@ -48,6 +48,12 @@ final class ContextStore {
     private var focusedWindow:AXUIElement?
     func get()->Foreground {lock.lock();defer{lock.unlock()};return value}
     func set(_ v:Foreground,window:AXUIElement?=nil) {lock.lock();value=v;focusedWindow=window;lock.unlock()}
+    // Read-only UI polling may retry an unavailable AX window. Actual input
+    // must still use valid(), which checks the live window identity as well.
+    func current(_ v:Foreground)->Bool {
+        lock.lock();let s=value;lock.unlock()
+        return s.generation==v.generation && s.pid==v.pid && NSWorkspace.shared.frontmostApplication?.processIdentifier==v.pid
+    }
     func valid(_ v:Foreground)->Bool {
         lock.lock();let s=value,expected=focusedWindow;lock.unlock()
         guard s.generation==v.generation,s.pid==v.pid,NSWorkspace.shared.frontmostApplication?.processIdentifier==v.pid else{return false}
