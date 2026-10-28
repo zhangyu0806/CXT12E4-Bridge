@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="configuration-revision" content="20261026-obsidian-span">
+<meta name="configuration-revision" content="20261028-span-dock">
 <meta name="color-scheme" content="light">
 <title>我的快捷键总表 · CXT12E4 Mac 使用手册</title>
 <style>
@@ -19,7 +19,7 @@
     <div class="manual-choice-row"><span class="manual-choice-label" id="sectionLabel">内容</span><div class="section-nav" role="group" aria-labelledby="sectionLabel"><a data-manual-section="keyboard" href="index.html?device=keyboard">12E4</a><a data-manual-section="xbox" href="index.html?device=xbox">手柄</a><a data-manual-section="shortcuts" href="shortcuts.html" aria-current="true">快捷键</a></div></div>
   </nav>
 </header>
-<div class="hero"><div class="eyebrow">Obsidian 跨屏更新 · 2026-10-26</div><h1>常用操作，集中在这一页。</h1><p class="lead">三屏布局、Windows 操作习惯、编辑与鼠标、应用快启和 tmux。这里写的是维护者已配置的 T90 / Karabiner / Hammerspoon / tmux 快捷键，是个人配置参考；Bridge 安装器不会自动部署三屏布局、Caps 映射和普通键盘数字快启。12E4 每层与 Xbox 的默认按键图从上方手册进入。</p></div>
+<div class="hero"><div class="eyebrow">跨屏稳定性更新 · 2026-10-28</div><h1>常用操作，集中在这一页。</h1><p class="lead">三屏布局、Windows 操作习惯、编辑与鼠标、应用快启和 tmux。这里写的是维护者已配置的 T90 / Karabiner / Hammerspoon / tmux 快捷键，是个人配置参考；Bridge 安装器不会自动部署三屏布局、Caps 映射和普通键盘数字快启。12E4 每层与 Xbox 的默认按键图从上方手册进入。</p></div>
 <div class="legend"><article><h2>三键组合</h2><p class="prefix"><kbd>Caps</kbd> + <kbd>Shift</kbd> + <kbd>实体 Win</kbd></p><p>Caps 代替 Command。普通应用与终端都可这样按；Shift 与 Caps 的先后顺序均兼容。下表“<b>三键</b>”均指这个组合。</p></article><article><h2>按键名称怎么读</h2><p><b>Win / 左 Alt</b> 指 T90 键帽上的实体键。<b>Option</b> 是 Mac 的 ⌥；终端中可用实体左 Alt；被编辑 / 鼠标层占用的组合会在表中单独注明。</p><p><b>前缀 → 键</b>：先按 <kbd>Caps + S</kbd> 或 <kbd>Ctrl + S</kbd>，松开，再按后面的键。<b>三键 + 键</b> 则同时按住。</p></article></div>
 <div class="favorites" aria-label="常用布局"><a class="favorite" href="#layouts"><small>三键 + ↑ / ↓</small><b>上半屏 / 下半屏</b><small>当前显示器的半屏</small></a><a class="favorite" href="#layouts"><small>三键 + L</small><b>移到右侧竖屏</b><small>当前窗口铺满右屏</small></a><a class="favorite" href="#layouts"><small>三键 + A</small><b>跨左侧上下双屏</b><small>当前窗口铺满，隐藏菜单栏</small></a><a class="favorite" href="#presets"><small>三键 + Z / X / C / S</small><b>四套固定布局</b><small>专注 / 终端 / 办公 / Codex + Claude</small></a></div>
 <div class="search-box"><div class="search-line"><input id="searchInput" type="search" aria-label="搜索所有快捷键" placeholder="搜索：上半屏、右屏、Alt+9、F1、粘贴……"><button type="button" id="clearButton">清空</button></div><p class="search-meta"><span id="resultCount" aria-live="polite"></span> · ⌘ / Ctrl + K 搜索 · Esc 清空 · 打印包含全部条目</p><div class="categories" aria-label="快捷键分类"><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="layouts" aria-pressed="false">窗口与多屏</button><button type="button" data-filter="presets" aria-pressed="false">一键固定布局</button><button type="button" data-filter="layout-readiness" aria-pressed="false">布局排错与应用启动</button><button type="button" data-filter="system" aria-pressed="false">Windows 风格操作</button><button type="button" data-filter="caps" aria-pressed="false">Caps 与输入</button><button type="button" data-filter="launch" aria-pressed="false">数字快启</button><button type="button" data-filter="edit" aria-pressed="false">左 Alt：编辑与鼠标</button><button type="button" data-filter="tmux-direct" aria-pressed="false">tmux：直接按</button><button type="button" data-filter="tmux-prefix" aria-pressed="false">tmux：先按前缀</button><button type="button" data-filter="tmux-copy" aria-pressed="false">tmux：复制模式中</button><button type="button" data-filter="cxt" aria-pressed="false">12E4 / Xbox：通用入口</button></div></div>
@@ -27,7 +27,7 @@
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>↑ / ↓</kbd></th><td>上半屏 / 下半屏</td><td>当前显示器内分半；不是移到上、下两台显示器。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>← / →</kbd></th><td>左半屏 / 右半屏</td><td>当前显示器内分半。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>L</kbd></th><td>当前窗口移到右侧竖屏并铺满</td><td>固定右侧 U2777B；重复按保持铺满，三键 + R 恢复。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>A</kbd></th><td>铺满 / 恢复</td><td>左侧窗口跨上下双屏并隐藏菜单栏；Obsidian 会保留底部 Dock 占用的空间。右侧窗口铺满右屏。再次按恢复；单屏时退回当前屏最大化。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>A</kbd></th><td>铺满 / 恢复</td><td>左侧窗口跨上下双屏并隐藏菜单栏；跨屏时保留底部可见 Dock 占用的空间。右侧窗口铺满右屏。再次按恢复；单屏时退回当前屏最大化。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>Space → 跨两屏 / 恢复</kbd></th><td>当前窗口跨左侧上下两屏 / 恢复</td><td>保留菜单栏。原 S 操作从布局菜单选择；接入 Sidecar 后仍使用指定左侧双屏。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>R</kbd></th><td>恢复当前窗口保存的位置</td><td>恢复本轮调整前的位置；与 Win + ↑ 的即时尺寸分别保存。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>1 / 2 / 3 / 4</kbd></th><td>移到对应编号的显示器</td><td>编号按从左到右、同列从上到下排序；缺少该屏时不执行。</td></tr>
@@ -36,7 +36,7 @@
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>↓</kbd></th><td>恢复尺寸 / 最小化</td><td>最大化后先恢复，再按最小化；普通窗口直接最小化。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>← / →</kbd></th><td>当前屏左半 / 右半</td><td>单窗口操作。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>Shift</kbd> + <kbd>方向键</kbd></th><td>移到相应方向的相邻显示器</td><td>普通窗口尽量保持尺寸；最大化窗口继续最大化。原生全屏需先退出。</td></tr>
-</tbody></table><div class="more"><p>本次核对的编号：<b>1 左上 LG · 2 左下 27C1U-D · 3 右竖 U2777B · 4 iPad Sidecar</b>。插拔或重新排列后编号可能变化；L 与 Z/X/C/S 使用固定显示器身份。</p><p><b>Obsidian 跨屏：</b>2026-10-26 修复“已伸到下屏又恢复单屏”的问题。现在以 Dock 上缘为跨屏底边，保留底部 Dock 空间；再次按三键 + A 可恢复原来的窗口大小。无需更改快捷键或 Dock 设置。</p><p>四分之一与居中目前从 <b>三键 + Space</b> 菜单选择。</p><p><b>原生全屏与多屏：</b>F11 使用 macOS 全屏空间；Win + ↑ 和三键 + A 使用桌面窗口铺满。左侧跨屏要求关闭“显示器具有单独的空间”，因此原生全屏会影响其他屏幕的可见窗口。开启独立空间会使左侧跨屏及 Z 预设无法使用。</p></div></section>
+</tbody></table><div class="more"><p>本次核对的编号：<b>1 左上 LG · 2 左下 27C1U-D · 3 右竖 U2777B · 4 iPad Sidecar</b>。插拔或重新排列后编号可能变化；L 与 Z/X/C/S 使用固定显示器身份。</p><p><b>跨屏后又缩回单屏：</b>2026-10-28 修复 ChatGPT / Codex、Obsidian 等应用的这个问题。上下双屏铺满现在统一避让底部可见 Dock，目标随当前可用空间变化；三键 + A 与自动跨屏维护使用相同边界。再次按三键 + A 可恢复原来的窗口大小。无需更改快捷键或 Dock 设置。</p><p>四分之一与居中目前从 <b>三键 + Space</b> 菜单选择。</p><p><b>原生全屏与多屏：</b>F11 使用 macOS 全屏空间；Win + ↑ 和三键 + A 使用桌面窗口铺满。左侧跨屏要求关闭“显示器具有单独的空间”，因此原生全屏会影响其他屏幕的可见窗口。开启独立空间会使左侧跨屏及 Z 预设无法使用。</p></div></section>
 <section class="section" id="presets"><header class="section-head"><h2>一键固定布局</h2><p>同时摆好常用窗口。Z/X/C/S 全局可触发，完成后聚焦 Codex。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>Z</kbd></th><td>跨屏专注</td><td>Codex 跨左侧上下双屏；Notion 铺满右侧竖屏。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>三键</kbd> + <kbd>X</kbd></th><td>终端开发</td><td>左上 Codex；左下 Ghostty；右侧 Safari。</td></tr>
@@ -176,7 +176,7 @@
 <tr data-shortcut><th scope="row"><kbd>Xbox RT + L3</kbd></th><td>当前层专用动作</td><td>按住 RT，再按左摇杆：Codex 聚焦输入框、tmux 缩放 pane、Notion 快速搜索；L3 单按仍打开设置。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Xbox Menu ≡ 短按 / 长按</kbd></th><td>任务与会话面板 / 暂停或恢复手柄</td><td>长按约 0.85 秒；完整映射见手柄页。</td></tr>
 </tbody></table><div class="more"><p><a href="index.html?device=keyboard&amp;layer=1">12E4 完整八层按键与旋钮图 →</a>　<a href="index.html?device=xbox&amp;layer=1">Xbox 完整八层按键图 →</a></p><p>短按、长按、键 12 组合与旋钮操作互斥；重叠输入取消后，松开全部键再操作。切任务时会唤回目标应用，已有跨屏窗口由窗口管理配置维护。</p></div></section></div><p id="empty" hidden>没有匹配的快捷键。试试动作名称，或切回“全部”。</p>
-<footer><p>Obsidian 跨屏更新：2026-10-26，三键 + A 的上下双屏目标适配底部 Dock 边界，避免有效跨屏被误判失败；固定布局与跨屏维护使用相同边界。全屏说明更新：2026-10-22，补充 F11 在共享空间下对其他屏幕的影响，以及 Win + ↑ 单屏最大化的区别。布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。数字快启更新：2026-10-21，槽 5 改为 Claude 桌面版，后续应用顺延至槽 10。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
+<footer><p>跨屏稳定性更新：2026-10-28，三键 + A 的上下双屏目标统一适配底部可见 Dock 边界，修复 ChatGPT / Codex、Obsidian 等应用跨屏后回滚；固定布局与跨屏维护使用相同边界。全屏说明更新：2026-10-22，补充 F11 在共享空间下对其他屏幕的影响，以及 Win + ↑ 单屏最大化的区别。布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。数字快启更新：2026-10-21，槽 5 改为 Claude 桌面版，后续应用顺延至槽 10。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
 </main><script src="../manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
 const input=document.getElementById('searchInput'), sections=[...document.querySelectorAll('.section')], rows=[...document.querySelectorAll('tbody tr[data-shortcut]')], filters=[...document.querySelectorAll('[data-filter]')];

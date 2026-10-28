@@ -578,12 +578,11 @@ local function spanFrame(fullBounds)
     return pairFrame(pair, fullBounds, #list == 2)
 end
 
--- Obsidian's live resize stops above a visible bottom Dock. Keep the menu-bar
--- edge hidden, but target that usable bottom rather than rolling a valid
--- two-display window back to one display. Other apps retain their full bounds.
-local function fullSpanTargetForWindow(win, frame)
-    local app = win and win:application()
-    if not frame or not app or not app.bundleID or app:bundleID() ~= "md.obsidian" then return frame end
+-- Live resizing can stop above a visible bottom Dock in multiple applications.
+-- Keep the hidden-menu-bar edge, but use one Dock-aware target for every
+-- vertical two-display span, including placement, verification and maintenance.
+local function dockAwareSpanFrame(frame)
+    if not frame then return frame end
     local pair, physicalBottom = {}, frame.y + frame.h
     for _, screen in ipairs(screens()) do
         local full = screen:fullFrame()
@@ -614,7 +613,7 @@ local function savedSpanFrame(win, action)
     else
         frame, reason, base = spanFrame(action == "fullspan")
     end
-    if action == "fullspan" then frame = fullSpanTargetForWindow(win, frame) end
+    if action == "fullspan" then frame = dockAwareSpanFrame(frame) end
     return frame, reason, base
 end
 
@@ -813,7 +812,7 @@ local function workspaceOperation(win, spec, snapshot, callback)
     local function targetFrame()
         if spec.span then
             local frame, reason, base = M.workspaceSpanFrame(spec.spanScreens, spec.fullBounds)
-            if spec.fullBounds then frame = fullSpanTargetForWindow(win, frame) end
+            if spec.fullBounds then frame = dockAwareSpanFrame(frame) end
             return frame, reason, base
         end
         if spec.screenUUID then

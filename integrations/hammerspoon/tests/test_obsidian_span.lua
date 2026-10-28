@@ -35,10 +35,13 @@ local function environment(options)
   local physical={{x=0,y=0,w=1920,h=1080},{x=0,y=1080,w=1920,h=1080},
     {x=1920,y=240,w=1080,h=1920}}
   physical[2].x=options.bottomX or 0
+  if options.horizontal then
+    physical={{x=0,y=0,w=1920,h=1080},{x=1920,y=0,w=1920,h=1080}}
+  end
   for i,frame in ipairs(physical) do
     local screen={number=i,bounds=copy(frame),usable=copy(frame)}
     if i==1 then screen.usable.y=30; screen.usable.h=1050 end
-    if i==2 then screen.usable.h=1080-(options.dock==false and 0 or 71) end
+    if i==2 then screen.usable.h=1080-(options.dock==false and 0 or options.dockHeight or 71) end
     function screen:id() return self.number end
     function screen:getUUID() return 'screen-'..self.number end
     function screen:name() return self:getUUID() end
@@ -94,10 +97,10 @@ local function environment(options)
     local pending=timer(.05,function()
       local actual=copy(target)
       if options.actualHeight then actual.h=options.actualHeight
-      elseif win:application():bundleID()=='md.obsidian' then
+      elseif not options.horizontal then
         local bottom=e.screens[2]:frame()
         actual.h=math.min(target.y+target.h,bottom.y+bottom.h)-target.y-1
-      else actual.h=target.h-1 end
+      else actual.w=target.w-1 end
       if options.actualWidth then actual.w=options.actualWidth end
       win.frameValue=actual; moved(win)
       -- The same strict acceptance boundary as window_span_drag; a one-screen
@@ -128,9 +131,13 @@ local function environment(options)
   local app={name=function()return 'MockApp'end,
     bundleID=function()return options.bundle or 'md.obsidian'end,isHidden=function()return false end}
   function w:application() return app end
-  function w:setSize(size) self.frameValue.w=size.w; self.frameValue.h=math.min(size.h,self:screen().bounds.h) end
+  function w:setSize(size)
+    local bounds=self:screen().bounds
+    self.frameValue.w=math.min(size.w,bounds.w); self.frameValue.h=math.min(size.h,bounds.h)
+  end
   function w:setFrame(frame)
-    self.frameValue=copy(frame); self.frameValue.h=math.min(frame.h,self:screen().bounds.h); moved(self)
+    self.frameValue=copy(frame); local bounds=self:screen().bounds
+    self.frameValue.w=math.min(frame.w,bounds.w); self.frameValue.h=math.min(frame.h,bounds.h); moved(self)
   end
   e.win=w
   function e:close() self.wm.stop(true) end
@@ -165,8 +172,10 @@ test('A spans Obsidian above the Dock and keeps the physical top edge',function(
   equalFrame(e.wm._savedFrames[w:id()].spanTarget,e.calls[1].target);e:close()
 end)
 test('A without a bottom Dock still targets the complete physical span',function()
-  local e,w=environment({dock=false});pressA(e,w)
-  equalFrame(e.calls[1].target,{x=0,y=0,w=1920,h=2160});assert(w:frame().h==2159);e:close()
+  for _,bundle in ipairs({'md.obsidian','com.openai.codex'}) do
+    local e,w=environment({dock=false,bundle=bundle});pressA(e,w)
+    equalFrame(e.calls[1].target,{x=0,y=0,w=1920,h=2160});assert(w:frame().h==2159);e:close()
+  end
 end)
 test('a permitted 1-4 pixel horizontal offset still uses the lowest display Dock',function()
   for offset=-1,-4,-1 do
@@ -183,11 +192,31 @@ test('a permitted 1-4 pixel horizontal offset still uses the lowest display Dock
     e:close()
   end
 end)
-test('other applications retain the complete physical span above the same Dock',function()
+test('Codex and other applications share the same bottom Dock boundary',function()
   for _,bundle in ipairs({'com.openai.codex','com.anthropic.claudefordesktop','md.obsidian.extra'}) do
     local e,w=environment({bundle=bundle});pressA(e,w)
-    equalFrame(e.calls[1].target,{x=0,y=0,w=1920,h=2160});e:close()
+    equalFrame(e.calls[1].target,{x=0,y=0,w=1920,h=2089})
+    assert(w:frame().h==2088 and e.calls[1].accepted)
+    pressA(e,w)
+    local result=workspace(e,w,fullSpec);assert(result.ok,tostring(result.detail))
+    equalFrame(e.wm.lastWorkspaceOperation.target,{x=0,y=0,w=1920,h=2089});e:close()
   end
+end)
+test('maintenance reads a changed Dock height for an existing Codex span',function()
+  local e,w=environment({bundle='com.openai.codex',dockHeight=71});pressA(e,w)
+  assert(e.calls[1].target.h==2089)
+  e.screens[2].usable.h=1080-67
+  w.frameValue={x=0,y=0,w=1920,h=1080};e:advance(2)
+  equalFrame(e.calls[2].target,{x=0,y=0,w=1920,h=2093})
+  equalFrame(w:frame(),{x=0,y=0,w=1920,h=2092})
+  pressA(e,w);equalFrame(w:frame(),{x=100,y=100,w=800,h=600});e:close()
+end)
+test('a horizontal two-display span retains its physical rectangle',function()
+  local e,w=environment({horizontal=true,bundle='com.openai.codex'})
+  pressA(e,w)
+  equalFrame(e.calls[1].target,{x=0,y=0,w=3840,h=1080})
+  equalFrame(w:frame(),{x=0,y=0,w=3839,h=1080})
+  pressA(e,w);equalFrame(w:frame(),{x=100,y=100,w=800,h=600});e:close()
 end)
 test('a second A restores the exact original window instead of retrying the span',function()
   local e,w=environment();local original=w:frame();pressA(e,w);pressA(e,w)
@@ -243,4 +272,4 @@ test('A on the right portrait display still fills only that physical display',fu
 end)
 
 print(string.format('%d checks passed, %d failed',passed,failed))
-assert(failed==0,'Obsidian span regression failure')
+assert(failed==0,'Dock-aware span regression failure')
