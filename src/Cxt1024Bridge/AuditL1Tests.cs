@@ -18,6 +18,7 @@ namespace Cxt1024Bridge
         internal static void Run()
         {
             ModelIntentTests.Run();
+            SidePanelControlTests.Run();
             BrowserFocusChecks();
             MenuExpansionChecks();
             CompactPositionChecks();

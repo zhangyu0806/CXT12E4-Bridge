@@ -95,13 +95,16 @@ Console.WriteLine("Exported actual WindowsLayerProfiles defaults to " + args[0])
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dotnet", default=os.environ.get("DOTNET_HOST_PATH") or shutil.which("dotnet"))
-    parser.add_argument("--suite", choices=("all", "profiles", "controller"), default="all")
+    parser.add_argument("--suite", choices=("all", "profiles", "controller", "side-panel"), default="all")
     parser.add_argument("--export-defaults", type=Path, help="After tests, export actual default bindings and labels as JSON (same shape as the Windows CLI)")
     args = parser.parse_args()
     if not args.dotnet:
         parser.error("dotnet not found; pass the official .NET 8 SDK host with --dotnet")
     files = ["WindowsLayerProfiles.cs"]
     calls = []
+    if args.suite in ("all", "side-panel"):
+        files += ["SidePanelControl.cs", "SidePanelControlTests.cs"]
+        calls.append("SidePanelControlTests.Run();")
     if args.suite in ("all", "profiles"):
         files.append("WindowsProfileTests.cs"); calls.append("WindowsProfileTests.Run();")
     if args.suite in ("all", "controller"):

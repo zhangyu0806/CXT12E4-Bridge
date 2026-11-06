@@ -114,6 +114,7 @@ namespace Cxt1024Bridge
             result["topLevelNewTaskButton"] = DescribeElement(FindTopLevelNewTaskButton(root), rootBounds);
             result["temporaryTaskButton"] = DescribeElement(FindButton(root, TemporaryTaskButtonNames), rootBounds);
             result["sidebarToggleButton"] = DescribeElement(FindSidebarToggle(root), rootBounds);
+            result["sidePanelToggleButton"] = DescribeElement(FindSidePanelToggle(root), rootBounds);
             result["taskState"] = ReadTaskState().ToString();
             result["writesSent"] = false;
             result["uiInvoked"] = false;
@@ -527,10 +528,57 @@ namespace Cxt1024Bridge
             return true;
         }
 
-        internal bool ToggleSidePanel()
+        internal bool ToggleSidePanel(IntPtr expectedWindow, Func<bool> contextIsCurrent)
         {
-            InputSender.Chord(Vk.B, Vk.LeftControl, Vk.LeftAlt);
-            return true;
+            try
+            {
+                Func<bool> guard = delegate
+                {
+                    return contextIsCurrent != null && contextIsCurrent() &&
+                        expectedWindow != IntPtr.Zero && NativeMethods.GetForegroundWindow() == expectedWindow;
+                };
+                bool sent = SidePanelControl.Dispatch(guard,
+                    delegate { return FindSidePanelToggle(GetRoot(expectedWindow)); },
+                    delegate(AutomationElement button)
+                    {
+                        // Recheck the live element as well as the input context immediately before invoking.
+                        return IsSidePanelToggle(button) && guard() && Invoke(button);
+                    });
+                if (sent)
+                    Logger.Info("L1 key 10 invoked the bound window's side panel button; UI transition not yet confirmed.");
+                else
+                    Logger.Warn("L1 key 10 cancelled or no unique enabled side panel button; no keyboard shortcut sent.");
+                return sent;
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Unable to invoke the side panel button; no keyboard shortcut sent", ex);
+                return false;
+            }
+        }
+
+        private static bool IsSidePanelToggle(AutomationElement button)
+        {
+            return SidePanelControl.IsToggle(SafeName(button), button.Current.ControlType == ControlType.Button,
+                !SafeOffscreen(button), SafeEnabled(button), SupportsInvoke(button));
+        }
+
+        private static AutomationElement FindSidePanelToggle(AutomationElement root)
+        {
+            if (root == null) return null;
+            try
+            {
+                var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
+                AutomationElementCollection buttons = root.FindAll(TreeScope.Descendants, condition);
+                var candidates = new List<AutomationElement>();
+                foreach (AutomationElement button in buttons) candidates.Add(button);
+                return SidePanelControl.FindUnique(candidates, IsSidePanelToggle);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Unable to find a unique side panel button", ex);
+                return null;
+            }
         }
 
         internal bool CopyLatestResponse()

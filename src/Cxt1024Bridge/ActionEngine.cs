@@ -289,7 +289,7 @@ namespace Cxt1024Bridge
             switch (layer)
             {
                 case 1:
-                    ChatGptButton(key, InputContextGuard(expectedForeground, expectedGeneration));
+                    ChatGptButton(key, expectedForeground, InputContextGuard(expectedForeground, expectedGeneration));
                     break;
                 case 2:
                     TerminalButton(key);
@@ -392,7 +392,7 @@ namespace Cxt1024Bridge
         }
 
 
-        private void ChatGptButton(int key, Func<bool> contextIsCurrent)
+        private void ChatGptButton(int key, IntPtr expectedWindow, Func<bool> contextIsCurrent)
         {
             int slot = TaskSlotForKey(key);
             if (slot > 0)
@@ -410,7 +410,7 @@ namespace Cxt1024Bridge
                     else
                         Logger.Warn("L1 key 9 could not find the ChatGPT sidebar toggle.");
                     break;
-                case 10: _chatGpt.ToggleSidePanel(); break;
+                case 10: _chatGpt.ToggleSidePanel(expectedWindow, contextIsCurrent); break;
                 case 11: _chatGpt.OpenInBuiltInBrowser("https://chatgpt.com/", contextIsCurrent); break;
                 case 12: _chatGpt.NewTask(contextIsCurrent); break;
             }
