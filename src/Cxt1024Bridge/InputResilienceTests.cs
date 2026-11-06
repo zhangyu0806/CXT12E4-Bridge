@@ -11,6 +11,15 @@ namespace Cxt1024Bridge
             if (!value) throw new InvalidOperationException("Input resilience: " + name);
         }
 
+        private static void WaitForQueueFence(HookInputPump pump, AutoResetEvent drained, long timestamp)
+        {
+            // The synthetic encoder callback is a FIFO fence, not another
+            // physical action. It confirms preceding edges were consumed.
+            pump.Receive(new BridgeTrigger { IsEncoder = true, Number = 1, IsDown = true,
+                EncoderGesture = EncoderGesture.Press, Timestamp = timestamp });
+            Check(drained.WaitOne(3000), "business queue reaches fence");
+        }
+
         internal static void Run()
         {
             Check(!HookInputPump.IsExpired(int.MaxValue - 20, int.MinValue + 20), "tick wrap");
@@ -18,12 +27,19 @@ namespace Cxt1024Bridge
             int taps = 0, holds = 0, encoders = 0;
             using (var entered = new ManualResetEvent(false))
             using (var release = new ManualResetEvent(false))
+            using (var tapped = new AutoResetEvent(false))
+            using (var held = new AutoResetEvent(false))
+            using (var drained = new AutoResetEvent(false))
             using (var processor = new TriggerProcessor(
                 () => 1, () => new IntPtr(1), () => 1,
-                delegate { Interlocked.Increment(ref taps); },
-                delegate { Interlocked.Increment(ref encoders); entered.Set(); release.WaitOne(3000); },
-                delegate { Interlocked.Increment(ref holds); },
-                delegate { Interlocked.Increment(ref holds); }, delegate { }))
+                delegate { Interlocked.Increment(ref taps); tapped.Set(); },
+                delegate(int layer, int encoder, EncoderGesture gesture, IntPtr window, long generation)
+                {
+                    if (encoder == 1) { drained.Set(); return; }
+                    Interlocked.Increment(ref encoders); entered.Set(); release.WaitOne(3000);
+                },
+                delegate { Interlocked.Increment(ref holds); held.Set(); },
+                delegate { Interlocked.Increment(ref holds); held.Set(); }, delegate { }))
             using (var pump = new HookInputPump(processor, () => new IntPtr(1)))
             {
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = true, Timestamp = 1000 });
@@ -35,18 +51,19 @@ namespace Cxt1024Bridge
                 Check(watch.ElapsedMilliseconds < 100, "key release does not wait for business lock");
                 Thread.Sleep(720);
                 release.Set();
-                Thread.Sleep(150);
+                WaitForQueueFence(pump, drained, 1900);
                 Check(holds == 0, "released key must not become a 650ms hold while consumer blocked");
                 Check(taps == 0, "expired release is cancelled, not replayed");
+                // Publish both edges together; the event timestamps define the
+                // short press without depending on the test thread's scheduling.
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = true, Timestamp = 2000 });
-                Thread.Sleep(30);
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = false, Timestamp = 2050 });
-                Thread.Sleep(100);
-                Check(taps == 1, "fresh short press recovers");
+                Check(tapped.WaitOne(3000) && taps == 1, "fresh short press recovers");
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = true, Timestamp = 3000 });
                 Thread.Sleep(800);
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = false, Timestamp = 3800 });
-                Thread.Sleep(100);
+                Check(held.WaitOne(3000), "long press callback delivered");
+                WaitForQueueFence(pump, drained, 3900);
                 Check(holds == 1 && taps == 1, "hold once, no short action on release");
                 Check(encoders == 1, "encoder delivered once");
             }
@@ -57,10 +74,16 @@ namespace Cxt1024Bridge
             long context = 1;
             using (var entered = new ManualResetEvent(false))
             using (var release = new ManualResetEvent(false))
+            using (var tapped = new AutoResetEvent(false))
+            using (var drained = new AutoResetEvent(false))
             using (var processor = new TriggerProcessor(
                 () => 1, () => new IntPtr(1), () => Interlocked.Read(ref context),
-                delegate { Interlocked.Increment(ref taps); },
-                delegate { entered.Set(); release.WaitOne(3000); },
+                delegate { Interlocked.Increment(ref taps); tapped.Set(); },
+                delegate(int layer, int encoder, EncoderGesture gesture, IntPtr window, long generation)
+                {
+                    if (encoder == 1) { drained.Set(); return; }
+                    entered.Set(); release.WaitOne(3000);
+                },
                 delegate { Interlocked.Increment(ref holds); },
                 delegate { Interlocked.Increment(ref holds); }, delegate { }))
             using (var pump = new HookInputPump(processor, () => new IntPtr(1), () => Interlocked.Read(ref context)))
@@ -74,12 +97,11 @@ namespace Cxt1024Bridge
                 Interlocked.Increment(ref context); // even if HWND comes back to the same app
                 release.Set();
                 Thread.Sleep(850);
+                WaitForQueueFence(pump, drained, 4900);
                 Check(taps == 0 && holds == 0, "overflow/context switch drops pending actions");
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = true, Timestamp = 5000 });
-                Thread.Sleep(30);
                 pump.Receive(new BridgeTrigger { Number = 9, IsDown = false, Timestamp = 5050 });
-                Thread.Sleep(100);
-                Check(taps == 1, "queue recovers after overflow");
+                Check(tapped.WaitOne(3000) && taps == 1, "queue recovers after overflow");
             }
 
             int latest = 0, writes = 0;
