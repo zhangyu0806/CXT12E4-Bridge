@@ -192,6 +192,13 @@ namespace Cxt1024Bridge
 
         internal bool SwitchTaskSlot(int slot, bool focusWindow)
         {
+            ChatGptTaskStatusSlot opened;
+            return SwitchTaskSlot(slot, focusWindow, out opened);
+        }
+
+        internal bool SwitchTaskSlot(int slot, bool focusWindow, out ChatGptTaskStatusSlot opened)
+        {
+            opened = null;
             if (slot < 1 || slot > 6)
                 throw new ArgumentOutOfRangeException("slot");
 
@@ -199,7 +206,12 @@ namespace Cxt1024Bridge
             {
                 ChatGptThreadSlot assigned = _slotRegistry.GetSlot(slot);
                 if (assigned != null)
-                    return OpenThreadDeepLink(assigned, focusWindow);
+                {
+                    // Capture identity and completion before dispatch. A new turn
+                    // finishing during navigation must remain unacknowledged.
+                    return ChatGptTaskStatusReader.OpenWithSnapshot(assigned,
+                        delegate(ChatGptThreadSlot target) { return OpenThreadDeepLink(target, focusWindow); }, out opened);
+                }
                 Logger.Warn("ChatGPT stable task slot " + slot + " is unavailable.");
             }
             catch (Exception ex)

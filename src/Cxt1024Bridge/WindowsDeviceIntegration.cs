@@ -173,7 +173,8 @@ namespace Cxt1024Bridge
                         if (record.Kind == "task")
                         {
                             if (_chatGpt.OpenThreadDeepLink(new ChatGptThreadSlot { Id = record.Id, Title = record.Title }, true))
-                                _statusMonitor.AcknowledgeThread(record.Id);
+                                _statusMonitor.AcknowledgeOpenedTask(new ChatGptTaskStatusSlot
+                                { ThreadId = record.Id, State = record.State, CompletionRevision = record.CompletionRevision });
                         }
                         else
                         {
@@ -196,7 +197,8 @@ namespace Cxt1024Bridge
             var records = new List<WindowsChooserRecord>();
             foreach (ChatGptTaskStatusSlot state in states)
                 if (state != null && !string.IsNullOrEmpty(state.ThreadId)) records.Add(new WindowsChooserRecord
-                    { Kind = "task", Id = state.ThreadId, Title = state.Title ?? "未命名任务", State = state.State });
+                    { Kind = "task", Id = state.ThreadId, Title = state.Title ?? "未命名任务", State = state.State,
+                        CompletionRevision = state.CompletionRevision });
             lock (_chooserCacheGate) _chooserTasks = records;
             _lighting.SetTaskStates(states);
         }

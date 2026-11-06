@@ -113,9 +113,10 @@ namespace Cxt1024Bridge
             _foregroundTimer.Tick += delegate { ObserveDeviceForeground(IntPtr.Zero); UpdateControllerStatus(); };
             _foregroundTimer.Start();
 
-            _statusMonitor = new ChatGptSixSlotStatusMonitor(_taskSlots, CacheTaskStates);
+            _statusMonitor = new ChatGptSixSlotStatusMonitor(_taskSlots, CacheTaskStates,
+                Path.Combine(Path.GetDirectoryName(Logger.LogPath), "codex-completion-ack.json"));
             _terminalStatusMonitor = new TerminalSixSessionStatusMonitor(CacheTerminalStates);
-            _actions.TaskSlotOpened += _statusMonitor.AcknowledgeSlot;
+            _actions.TaskSlotOpened += _statusMonitor.AcknowledgeOpenedTask;
             _actions.TerminalSessionOpened += _terminalStatusMonitor.AcknowledgeSession;
             InitializeDeviceSettings();
             _hook.Install();
@@ -331,7 +332,7 @@ namespace Cxt1024Bridge
             // monitors and event subscriptions are still alive. No queued tmux
             // switch may run after the monitors or lighting controller are gone.
             _dispatcher.Dispose();
-            _actions.TaskSlotOpened -= _statusMonitor.AcknowledgeSlot;
+            _actions.TaskSlotOpened -= _statusMonitor.AcknowledgeOpenedTask;
             _actions.TerminalSessionOpened -= _terminalStatusMonitor.AcknowledgeSession;
             _statusMonitor.Dispose();
             _terminalStatusMonitor.Dispose();

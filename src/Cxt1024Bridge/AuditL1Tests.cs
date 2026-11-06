@@ -10,9 +10,6 @@ namespace Cxt1024Bridge
     // No UI Automation, key injection, real task, or model action is invoked.
     internal static class AuditL1Tests
     {
-        private const string Started = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}}";
-        private const string Completed = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"}}";
-        private const string Aborted = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}";
         private const string Url = "https://chatgpt.com/";
 
         internal static void Run()
@@ -23,9 +20,8 @@ namespace Cxt1024Bridge
             MenuExpansionChecks();
             CompactPositionChecks();
             SidebarSelectionChecks();
-            PendingTurnChecks();
-            CompletionRevisionChecks();
-            RolloutOffsetChecks();
+            // Rollout/colour checks live in CodexTaskStateTests so Windows and
+            // the portable status suite execute the same regression coverage.
         }
 
         private static void Check(bool condition, string name)
@@ -165,110 +161,6 @@ namespace Cxt1024Bridge
             Check(ChatGptAutomation.AdjacentSidebarTaskIndex(new[] { 0, 1, 2 }, true) == -1, "hover-only rows are not selected");
         }
 
-        private static string Request(string id, string name)
-        {
-            return "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"name\":\"" +
-                name + "\",\"call_id\":\"" + id + "\"}}";
-        }
-
-        private static string Answer(string id)
-        {
-            return "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"" +
-                id + "\",\"output\":\"ok\"}}";
-        }
-
-        private static void PendingTurnChecks()
-        {
-            foreach (string name in new[] { "request_user_input", "request_plugin_install" })
-            {
-                string pending = Started + "\n" + Request("old", name);
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(pending) == AiTaskState.WaitingForInput, "current request is pending: " + name);
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(pending + "\n" + Answer("old")) == AiTaskState.Thinking, "answered current request: " + name);
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(pending + "\n" + Started) == AiTaskState.Thinking, "new start alone ends the previous pending scope: " + name);
-                string resumed = pending + "\n" + Aborted + "\n" + Started;
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(resumed) == AiTaskState.Thinking, "aborted question cannot leak into next turn: " + name);
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(pending + "\n" + Completed + "\n" + Started) == AiTaskState.Thinking, "completed question cannot leak into next turn: " + name);
-                Check(ChatGptTaskStatusReader.ReadTextStateForTest(resumed + "\n" + Request("new", name)) == AiTaskState.WaitingForInput, "new turn can ask again: " + name);
-            }
-        }
-
-        private static ChatGptTaskStatusSlot Slot(string text)
-        {
-            string revision;
-            AiTaskState state = ChatGptTaskStatusReader.ReadTextStateForTest(text, out revision);
-            return new ChatGptTaskStatusSlot
-            {
-                ThreadId = "synthetic-l1-task",
-                State = state,
-                Evidence = state == AiTaskState.Idle ? "task_complete" : "task_started",
-                CompletionRevision = revision
-            };
-        }
-
-        private static AiTaskState Apply(ChatGptCompletionLatch latch, string text)
-        {
-            ChatGptTaskStatusSlot slot = Slot(text);
-            latch.Apply(new[] { slot });
-            return slot.State;
-        }
-
-        private static void CompletionRevisionChecks()
-        {
-            var latch = new ChatGptCompletionLatch();
-            string oldTurn = Started + "\n" + Completed;
-            Check(Apply(latch, oldTurn) == AiTaskState.Idle, "initial historical completion remains acknowledged");
-            Check(Apply(latch, oldTurn + "\nextra log text") == AiTaskState.Idle, "tail growth is not a new completion");
-            string fastTurn = oldTurn + "\n" + Started + "\n" + Completed;
-            Check(Apply(latch, fastTurn) == AiTaskState.Completed, "completed turn between polls latches green");
-            Check(Apply(latch, fastTurn) == AiTaskState.Completed, "completion stays green until acknowledgement");
-            Check(latch.Acknowledge("synthetic-l1-task"), "acknowledge detected completion");
-            Check(Apply(latch, fastTurn) == AiTaskState.Idle, "same event does not relatch after acknowledgement");
-            latch.Apply(new[] { new ChatGptTaskStatusSlot
-            {
-                ThreadId = "synthetic-l1-task", State = AiTaskState.Idle, Evidence = "no-rollout"
-            } });
-            Check(Apply(latch, fastTurn) == AiTaskState.Idle, "temporary missing rollout does not forget acknowledged revision");
-            Check(Apply(latch, fastTurn + "\n" + Started) == AiTaskState.Thinking, "active transition positive control");
-            Check(Apply(latch, fastTurn + "\n" + Started + "\n" + Completed) == AiTaskState.Completed, "sampled active completion still works");
-
-            var firstTurnLatch = new ChatGptCompletionLatch();
-            firstTurnLatch.Apply(new[] { new ChatGptTaskStatusSlot
-            {
-                ThreadId = "synthetic-l1-task", State = AiTaskState.Idle, Evidence = "no-task-marker"
-            } });
-            Check(Apply(firstTurnLatch, oldTurn) == AiTaskState.Completed, "first fast turn after a known idle baseline");
-        }
-
-        private static void RolloutOffsetChecks()
-        {
-            string fixturePath = Path.Combine(Path.GetTempPath(), "cxt12e4-l1-audit-" + Guid.NewGuid().ToString("N") + ".jsonl");
-            try
-            {
-                // Put the completion pattern across a 64 KiB reverse-scan block
-                // boundary, after UTF-8 text. Its byte offset must remain exact.
-                string prefix = new string('\u4E2D', 100) + "\n";
-                string fixture = prefix + Completed + "\n" + new string('x', 65536 - Completed.Length + 11);
-                File.WriteAllText(fixturePath, fixture, new UTF8Encoding(false));
-                string evidence;
-                string revision;
-                Check(ChatGptTaskStatusReader.ReadRolloutState(fixturePath, out evidence, out revision) == AiTaskState.Idle && evidence == "task_complete", "cross-block completion marker");
-                string expectedSuffix = ":" + (Encoding.UTF8.GetByteCount(prefix) + 1).ToString(CultureInfo.InvariantCulture);
-                Check(revision.EndsWith(expectedSuffix, StringComparison.Ordinal), "completion revision uses exact UTF-8 byte offset");
-                File.AppendAllText(fixturePath, "\nmore log text", new UTF8Encoding(false));
-                string afterAppend;
-                ChatGptTaskStatusReader.ReadRolloutState(fixturePath, out evidence, out afterAppend);
-                Check(revision == afterAppend, "file tail growth preserves completion identity");
-
-                string resumed = Started + "\n" + Request("cancelled", "request_user_input") + "\n" + Aborted + "\n" + Started;
-                File.WriteAllText(fixturePath, resumed, new UTF8Encoding(false));
-                Check(ChatGptTaskStatusReader.ReadRolloutState(fixturePath, out evidence, out revision) == AiTaskState.Thinking, "file reader scopes pending calls to current turn");
-            }
-            finally
-            {
-                if (File.Exists(fixturePath))
-                    File.Delete(fixturePath);
-            }
-        }
 
     }
 }

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Web.Script.Serialization;
 
 namespace Cxt1024Bridge
 {
@@ -21,25 +22,16 @@ namespace Cxt1024Bridge
 
     internal static class ChatGptTaskStatusReader
     {
-        private const int ReadBlockSize = 65536;
-        private const int MarkerOverlap = 192;
-        private const int PendingRequestTailBytes = 524288;
-
-        private static readonly StatusMarker[] Markers =
+        internal static bool OpenWithSnapshot(ChatGptThreadSlot thread, Func<ChatGptThreadSlot, bool> open,
+            out ChatGptTaskStatusSlot opened)
         {
-            new StatusMarker(
-                "task_complete",
-                "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"",
-                AiTaskState.Idle),
-            new StatusMarker(
-                "task_started",
-                "\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"",
-                AiTaskState.Thinking),
-            new StatusMarker(
-                "turn_aborted",
-                "\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"",
-                AiTaskState.Error)
-        };
+            opened = null;
+            if (thread == null || open == null) return false;
+            ChatGptTaskStatusSlot snapshot = ReadSlots(new[] { thread })[0];
+            if (!open(thread)) return false;
+            opened = snapshot;
+            return true;
+        }
 
         internal static List<ChatGptTaskStatusSlot> ReadRecent(int limit)
         {
@@ -79,251 +71,128 @@ namespace Cxt1024Bridge
         internal static AiTaskState ReadRolloutState(
             string rolloutPath, out string evidence, out string completionRevision)
         {
-            evidence = "no-rollout";
-            completionRevision = string.Empty;
-            rolloutPath = ChatGptThreadCatalog.NormalizeFileSystemPath(rolloutPath);
-            if (string.IsNullOrWhiteSpace(rolloutPath) || !File.Exists(rolloutPath))
-                return AiTaskState.Idle;
-
-            StatusMarker marker = FindLastMarker(rolloutPath);
-            if (marker == null)
-            {
-                evidence = "no-task-marker";
-                return AiTaskState.Idle;
-            }
-            evidence = marker.Name;
-            if (marker.Name == "task_complete")
-                completionRevision = rolloutPath + ":" + marker.Offset.ToString(CultureInfo.InvariantCulture);
-            if (marker.State == AiTaskState.Thinking && HasPendingUserRequest(rolloutPath, marker.Offset))
-            {
-                evidence = "pending-user-request";
-                return AiTaskState.WaitingForInput;
-            }
-            return marker.State;
+            CodexRolloutState result = CodexRolloutState.ReadFile(ChatGptThreadCatalog.NormalizeFileSystemPath(rolloutPath));
+            evidence = result.Evidence;
+            completionRevision = result.CompletionRevision;
+            return result.State;
         }
 
         internal static AiTaskState ReadTextStateForTest(string text)
         {
-            string completionRevision;
-            return ReadTextStateForTest(text, out completionRevision);
+            string revision;
+            return ReadTextStateForTest(text, out revision);
         }
 
         internal static AiTaskState ReadTextStateForTest(string text, out string completionRevision)
         {
-            string value = text ?? string.Empty;
-            StatusMarker marker = FindLastMarkerInText(value);
-            completionRevision = marker != null && marker.Name == "task_complete"
-                ? marker.Offset.ToString(CultureInfo.InvariantCulture) : string.Empty;
-            if (marker == null)
-                return AiTaskState.Idle;
-            if (marker.State == AiTaskState.Thinking && HasPendingUserRequestInText(value))
-                return AiTaskState.WaitingForInput;
-            return marker.State;
-        }
-
-        private static StatusMarker FindLastMarker(string path)
-        {
-            using (var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete))
-            {
-                long position = stream.Length;
-                string laterPrefix = string.Empty;
-                var bytes = new byte[ReadBlockSize];
-                while (position > 0)
-                {
-                    int count = (int)Math.Min(ReadBlockSize, position);
-                    long start = position - count;
-                    stream.Position = start;
-                    int total = 0;
-                    while (total < count)
-                    {
-                        int read = stream.Read(bytes, total, count - total);
-                        if (read <= 0)
-                            break;
-                        total += read;
-                    }
-
-                    // Marker syntax is ASCII. A one-byte/one-character scan
-                    // preserves its exact file offset even when a block splits
-                    // a multibyte UTF-8 character elsewhere in the rollout.
-                    string current = Encoding.ASCII.GetString(bytes, 0, total);
-                    string searchable = current + laterPrefix;
-                    StatusMarker found = FindLastMarkerInText(searchable);
-                    if (found != null)
-                    {
-                        found.Offset += start;
-                        return found;
-                    }
-
-                    laterPrefix = current.Substring(0, Math.Min(MarkerOverlap, current.Length));
-                    position = start;
-                }
-            }
-            return null;
-        }
-
-        private static StatusMarker FindLastMarkerInText(string text)
-        {
-            StatusMarker found = null;
-            int foundAt = -1;
-            for (int i = 0; i < Markers.Length; i++)
-            {
-                int at = text.LastIndexOf(Markers[i].Pattern, StringComparison.Ordinal);
-                if (at > foundAt)
-                {
-                    foundAt = at;
-                    found = new StatusMarker(Markers[i].Name, Markers[i].Pattern, Markers[i].State);
-                    found.Offset = at;
-                }
-            }
-            return found;
-        }
-
-        private static bool HasPendingUserRequest(string path, long turnStartedOffset)
-        {
-            return HasPendingUserRequestInText(ReadTail(path, PendingRequestTailBytes, turnStartedOffset));
-        }
-
-        private static bool HasPendingUserRequestInText(string tail)
-        {
-            int requestInput = tail.LastIndexOf("\"name\":\"request_user_input\"", StringComparison.Ordinal);
-            int pluginInstall = tail.LastIndexOf("\"name\":\"request_plugin_install\"", StringComparison.Ordinal);
-            int requestAt = Math.Max(requestInput, pluginInstall);
-            if (requestAt < 0)
-                return false;
-
-            // A cancelled/unanswered call from an older turn is not a pending
-            // request in the new turn. ReadTail is also bounded to the current
-            // task_started offset when that marker lies beyond its size limit.
-            StatusMarker boundary = FindLastMarkerInText(tail);
-            if (boundary != null && requestAt < boundary.Offset)
-                return false;
-
-            int lineStart = tail.LastIndexOf('\n', requestAt);
-            lineStart = lineStart < 0 ? 0 : lineStart + 1;
-            int lineEnd = tail.IndexOf('\n', requestAt);
-            if (lineEnd < 0)
-                lineEnd = tail.Length;
-            string line = tail.Substring(lineStart, lineEnd - lineStart);
-            if (line.IndexOf("\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\"", StringComparison.Ordinal) < 0)
-                return false;
-
-            const string callIdMarker = "\"call_id\":\"";
-            int callIdAt = line.IndexOf(callIdMarker, StringComparison.Ordinal);
-            if (callIdAt < 0)
-                return false;
-            callIdAt += callIdMarker.Length;
-            int callIdEnd = line.IndexOf('"', callIdAt);
-            if (callIdEnd <= callIdAt)
-                return false;
-            string callId = line.Substring(callIdAt, callIdEnd - callIdAt);
-
-            string callIdNeedle = callIdMarker + callId + "\"";
-            return tail.IndexOf(callIdNeedle, lineEnd, StringComparison.Ordinal) < 0;
-        }
-
-        private static string ReadTail(string path, int maximumBytes, long minimumOffset)
-        {
-            using (var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete))
-            {
-                long start = Math.Max(Math.Max(0, stream.Length - maximumBytes), minimumOffset);
-                start = Math.Min(start, stream.Length);
-                int count = (int)(stream.Length - start);
-                stream.Position = start;
-                var bytes = new byte[count];
-                int total = 0;
-                while (total < count)
-                {
-                    int read = stream.Read(bytes, total, count - total);
-                    if (read <= 0)
-                        break;
-                    total += read;
-                }
-                return Encoding.UTF8.GetString(bytes, 0, total);
-            }
-        }
-
-        private sealed class StatusMarker
-        {
-            internal readonly string Name;
-            internal readonly string Pattern;
-            internal readonly AiTaskState State;
-            internal long Offset;
-
-            internal StatusMarker(string name, string pattern, AiTaskState state)
-            {
-                Name = name;
-                Pattern = pattern;
-                State = state;
-            }
+            CodexRolloutState result = CodexRolloutState.ReadText(text);
+            completionRevision = result.CompletionRevision;
+            return result.State;
         }
     }
 
     internal sealed class ChatGptCompletionLatch
     {
-        private readonly Dictionary<string, AiTaskState> _observedStates =
-            new Dictionary<string, AiTaskState>(StringComparer.OrdinalIgnoreCase);
-        private readonly HashSet<string> _unacknowledgedCompleted =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _completionRevisions =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly string _path;
+        private readonly Dictionary<string, HashSet<string>> _acknowledged =
+            new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        internal string PersistenceError { get; private set; }
+
+        internal ChatGptCompletionLatch(string path = null)
+        {
+            _path = path;
+            PersistenceError = string.Empty;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+            try
+            {
+                var stored = Serializer().DeserializeObject(File.ReadAllText(path)) as Dictionary<string, object>;
+                if (stored == null) return;
+                foreach (var pair in stored)
+                {
+                    var values = pair.Value as object[];
+                    if (string.IsNullOrWhiteSpace(pair.Key) || values == null) continue;
+                    var revisions = new HashSet<string>(StringComparer.Ordinal);
+                    foreach (object value in values)
+                        if (value is string && !string.IsNullOrEmpty((string)value)) revisions.Add((string)value);
+                    _acknowledged[pair.Key] = revisions;
+                }
+            }
+            catch (Exception error)
+            {
+                if (!(error is IOException) && !(error is UnauthorizedAccessException) &&
+                    !(error is ArgumentException) && !(error is InvalidOperationException)) throw;
+                PersistenceError = error.Message;
+            }
+        }
 
         internal void Apply(IList<ChatGptTaskStatusSlot> slots)
         {
-            if (slots == null)
-                return;
-            for (int i = 0; i < slots.Count; i++)
+            if (slots == null) return;
+            foreach (ChatGptTaskStatusSlot slot in slots)
             {
-                ChatGptTaskStatusSlot slot = slots[i];
-                if (slot == null || string.IsNullOrWhiteSpace(slot.ThreadId))
-                    continue;
-
-                AiTaskState observed = slot.State;
-                AiTaskState previous;
-                bool hadPrevious = _observedStates.TryGetValue(slot.ThreadId, out previous);
-                bool isCompletion = observed == AiTaskState.Idle &&
-                    string.Equals(slot.Evidence, "task_complete", StringComparison.Ordinal);
-                string previousRevision;
-                bool hasRevision = !string.IsNullOrEmpty(slot.CompletionRevision);
-                bool hasPreviousRevision = _completionRevisions.TryGetValue(slot.ThreadId, out previousRevision);
-                bool changedCompletion = isCompletion && hasRevision &&
-                    (!hasPreviousRevision ||
-                     !string.Equals(slot.CompletionRevision, previousRevision, StringComparison.Ordinal));
-                bool newlyCompleted = hadPrevious &&
-                    isCompletion &&
-                    ((previous != AiTaskState.Idle && previous != AiTaskState.Completed) || changedCompletion);
-
-                // The rollout is append-only: its completion marker offset is
-                // stable across tail growth and changes for every new turn.
-                // Do not discard it on transient no-rollout/no-marker polls.
-                if (isCompletion && hasRevision)
-                    _completionRevisions[slot.ThreadId] = slot.CompletionRevision;
-
-                if (observed != AiTaskState.Idle)
-                    _unacknowledgedCompleted.Remove(slot.ThreadId);
-                else if (newlyCompleted)
-                    _unacknowledgedCompleted.Add(slot.ThreadId);
-
-                _observedStates[slot.ThreadId] = observed;
-                if (observed == AiTaskState.Idle && _unacknowledgedCompleted.Contains(slot.ThreadId))
+                HashSet<string> revisions;
+                if (slot != null && slot.State == AiTaskState.Completed && !string.IsNullOrEmpty(slot.ThreadId) &&
+                    !string.IsNullOrEmpty(slot.CompletionRevision) && _acknowledged.TryGetValue(slot.ThreadId, out revisions) &&
+                    revisions.Contains(slot.CompletionRevision))
                 {
-                    slot.State = AiTaskState.Completed;
-                    slot.Evidence = "task_complete-unacknowledged";
+                    slot.State = AiTaskState.Idle;
+                    slot.Evidence = "completion-viewed";
                 }
             }
         }
 
-        internal bool Acknowledge(string threadId)
+        internal bool Acknowledge(ChatGptTaskStatusSlot opened)
         {
-            return !string.IsNullOrWhiteSpace(threadId) &&
-                _unacknowledgedCompleted.Remove(threadId);
+            return opened != null && opened.State == AiTaskState.Completed &&
+                Acknowledge(opened.ThreadId, opened.CompletionRevision);
+        }
+
+        internal bool Acknowledge(string threadId, string revision)
+        {
+            if (string.IsNullOrWhiteSpace(threadId) || string.IsNullOrEmpty(revision)) return false;
+            HashSet<string> revisions;
+            bool existing = _acknowledged.TryGetValue(threadId, out revisions);
+            if (!existing) _acknowledged[threadId] = revisions = new HashSet<string>(StringComparer.Ordinal);
+            if (!revisions.Add(revision)) return false;
+            try
+            {
+                Save();
+                PersistenceError = string.Empty;
+                return true;
+            }
+            catch (Exception error)
+            {
+                if (!(error is IOException) && !(error is UnauthorizedAccessException) &&
+                    !(error is ArgumentException) && !(error is InvalidOperationException)) throw;
+                revisions.Remove(revision);
+                if (!existing && revisions.Count == 0) _acknowledged.Remove(threadId);
+                PersistenceError = error.Message;
+                return false;
+            }
+        }
+
+        private static JavaScriptSerializer Serializer()
+        { return new JavaScriptSerializer { MaxJsonLength = 64 * 1024 * 1024, RecursionLimit = 128 }; }
+
+        private void Save()
+        {
+            if (string.IsNullOrEmpty(_path)) return;
+            string directory = Path.GetDirectoryName(Path.GetFullPath(_path));
+            Directory.CreateDirectory(directory);
+            var data = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (var pair in _acknowledged)
+            {
+                var values = new string[pair.Value.Count]; pair.Value.CopyTo(values);
+                data[pair.Key] = values;
+            }
+            string temporary = _path + ".tmp-" + Guid.NewGuid().ToString("N");
+            try
+            {
+                File.WriteAllText(temporary, Serializer().Serialize(data), new UTF8Encoding(false));
+                if (File.Exists(_path)) File.Replace(temporary, _path, null);
+                else File.Move(temporary, _path);
+            }
+            finally { if (File.Exists(temporary)) File.Delete(temporary); }
         }
     }
 
@@ -333,15 +202,15 @@ namespace Cxt1024Bridge
         private readonly Action<IList<ChatGptTaskStatusSlot>> _onChanged;
         private readonly ChatGptTaskSlotRegistry _slotRegistry;
         private readonly Timer _timer;
-        private readonly ChatGptCompletionLatch _completionLatch = new ChatGptCompletionLatch();
-        private readonly string[] _threadIdsBySlot = new string[6];
+        private readonly ChatGptCompletionLatch _completionLatch;
         private string _lastSignature = string.Empty;
         private int _polling;
         private bool _disposed;
 
         internal ChatGptSixSlotStatusMonitor(
             ChatGptTaskSlotRegistry slotRegistry,
-            Action<IList<ChatGptTaskStatusSlot>> onChanged)
+            Action<IList<ChatGptTaskStatusSlot>> onChanged,
+            string acknowledgementPath = null)
         {
             if (slotRegistry == null)
                 throw new ArgumentNullException("slotRegistry");
@@ -349,48 +218,22 @@ namespace Cxt1024Bridge
                 throw new ArgumentNullException("onChanged");
             _slotRegistry = slotRegistry;
             _onChanged = onChanged;
+            _completionLatch = new ChatGptCompletionLatch(acknowledgementPath);
             _timer = new Timer(Poll, null, 250, 750);
         }
 
-        internal void AcknowledgeSlot(int slot)
-        {
-            if (slot < 1 || slot > _threadIdsBySlot.Length)
-                return;
-            string threadId;
-            bool changed;
-            lock (_gate)
-            {
-                if (_disposed)
-                    return;
-                threadId = _threadIdsBySlot[slot - 1];
-                changed = _completionLatch.Acknowledge(threadId);
-                if (changed)
-                    _lastSignature = string.Empty;
-            }
-            if (!changed)
-                return;
-            Logger.Info("ChatGPT task slot " + slot + " completion acknowledged; green changed to idle white.");
-            try
-            {
-                _timer.Change(0, 750);
-            }
-            catch (ObjectDisposedException)
-            {
-                // Shutdown raced with a task-key acknowledgement.
-            }
-        }
-
-        internal void AcknowledgeThread(string threadId)
+        internal void AcknowledgeOpenedTask(ChatGptTaskStatusSlot opened)
         {
             bool changed;
             lock (_gate)
             {
-                if (_disposed || string.IsNullOrEmpty(threadId)) return;
-                changed = _completionLatch.Acknowledge(threadId);
+                if (_disposed) return;
+                changed = _completionLatch.Acknowledge(opened);
                 if (changed) _lastSignature = string.Empty;
+                else if (_completionLatch.PersistenceError.Length != 0)
+                    Logger.Error("Unable to persist viewed Codex completion", new IOException(_completionLatch.PersistenceError));
             }
-            if (!changed) return;
-            try { _timer.Change(0, 750); } catch (ObjectDisposedException) { }
+            if (changed) try { _timer.Change(0, 750); } catch (ObjectDisposedException) { }
         }
 
         private void Poll(object ignored)
@@ -407,14 +250,6 @@ namespace Cxt1024Bridge
                     if (_disposed)
                         return;
                     _completionLatch.Apply(slots);
-                    Array.Clear(_threadIdsBySlot, 0, _threadIdsBySlot.Length);
-                    for (int i = 0; i < slots.Count; i++)
-                    {
-                        int index = slots[i].Slot - 1;
-                        if (index >= 0 && index < _threadIdsBySlot.Length)
-                            _threadIdsBySlot[index] = slots[i].ThreadId;
-                    }
-
                     string signature = BuildSignature(slots);
                     changed = !string.Equals(signature, _lastSignature, StringComparison.Ordinal);
                     if (changed)
@@ -445,6 +280,8 @@ namespace Cxt1024Bridge
                 builder.Append(slots[i].ThreadId);
                 builder.Append(':');
                 builder.Append((int)slots[i].State);
+                builder.Append(':');
+                builder.Append(slots[i].CompletionRevision);
                 builder.Append('|');
             }
             return builder.ToString();

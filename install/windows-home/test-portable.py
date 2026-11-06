@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Windows profile/controller state tests in an isolated .NET 8 harness.
+"""Run Windows profile/controller/Codex state tests in an isolated .NET 8 harness.
 
 This is supplemental verification, not the Windows --self-test. Production
 source files are compiled unchanged. The .NET Framework-only JSON API uses a
@@ -8,6 +8,7 @@ test-only System.Text.Json adapter; Windows JSON, UI and input APIs are not run.
 
 import argparse
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -40,8 +41,12 @@ namespace System.Web.Script.Serialization
         public object DeserializeObject(string text)
         {
             Check(text);
-            using (JsonDocument document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = RecursionLimit }))
-                return ConvertValue(document.RootElement);
+            try
+            {
+                using (JsonDocument document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = RecursionLimit }))
+                    return ConvertValue(document.RootElement);
+            }
+            catch (JsonException error) { throw new ArgumentException("Invalid JSON", error); }
         }
         private object ConvertValue(JsonElement element)
         {
@@ -63,6 +68,36 @@ namespace System.Web.Script.Serialization
                 default: return null;
             }
         }
+    }
+}
+'''
+
+
+STATUS_HOST_STUBS = r'''
+using System;
+using System.Collections.Generic;
+namespace Cxt1024Bridge
+{
+    STATE_ENUM
+    // Catalog/service APIs are never exercised by the portable parser suite.
+    internal sealed class ChatGptThreadSlot
+    {
+        internal string Id = "", Title = "", RolloutPath = "";
+        internal long RecencyAtMilliseconds = 0;
+    }
+    internal static class ChatGptThreadCatalog
+    {
+        internal static List<ChatGptThreadSlot> ReadRecent(int limit) { throw new NotSupportedException("No portable catalog"); }
+        internal static string NormalizeFileSystemPath(string path) { return path; }
+    }
+    internal sealed class ChatGptTaskSlotRegistry
+    {
+        internal List<ChatGptThreadSlot> Snapshot() { throw new NotSupportedException("No portable catalog"); }
+    }
+    internal static class Logger
+    {
+        internal static void Info(string text) { throw new NotSupportedException("No portable monitor"); }
+        internal static void Error(string text, Exception error) { throw new NotSupportedException("No portable monitor"); }
     }
 }
 '''
@@ -95,7 +130,7 @@ Console.WriteLine("Exported actual WindowsLayerProfiles defaults to " + args[0])
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dotnet", default=os.environ.get("DOTNET_HOST_PATH") or shutil.which("dotnet"))
-    parser.add_argument("--suite", choices=("all", "profiles", "controller", "side-panel"), default="all")
+    parser.add_argument("--suite", choices=("all", "profiles", "controller", "status", "side-panel"), default="all")
     parser.add_argument("--export-defaults", type=Path, help="After tests, export actual default bindings and labels as JSON (same shape as the Windows CLI)")
     args = parser.parse_args()
     if not args.dotnet:
@@ -110,6 +145,9 @@ def main():
     if args.suite in ("all", "controller"):
         files += ["WindowsControllerEngine.cs", "WindowsControllerState.cs", "WindowsControllerTests.cs"]
         calls.append("WindowsControllerTests.Run();")
+    if args.suite in ("all", "status"):
+        files += ["CodexRolloutState.cs", "ChatGptTaskStatus.cs", "CodexTaskStateTests.cs"]
+        calls.append("CodexTaskStateTests.Run();")
     source_root = ROOT / "src" / "Cxt1024Bridge"
     for name in files:
         if not (source_root / name).is_file():
@@ -118,6 +156,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix="cxt-portable-tests-") as temporary:
         directory = Path(temporary)
         compile_items = [str(source_root / name) for name in files] + [str(directory / "Adapter.cs"), str(directory / "Runner.cs")]
+        if args.suite in ("all", "status"):
+            enum = re.search(r"internal enum AiTaskState\s*\{[^}]+\}", (source_root / "LightingController.cs").read_text()).group(0)
+            (directory / "StatusHostStubs.cs").write_text(STATUS_HOST_STUBS.replace("STATE_ENUM", enum), encoding="utf-8")
+            compile_items.append(str(directory / "StatusHostStubs.cs"))
         project = '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><LangVersion>5</LangVersion><EnableDefaultCompileItems>false</EnableDefaultCompileItems><GenerateAssemblyInfo>false</GenerateAssemblyInfo><ImplicitUsings>disable</ImplicitUsings><Nullable>disable</Nullable></PropertyGroup><ItemGroup>'
         project += "".join('<Compile Include="' + escape(path, {'"': '&quot;'}) + '" />' for path in compile_items)
         project += '</ItemGroup></Project>'

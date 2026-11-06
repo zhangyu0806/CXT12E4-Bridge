@@ -7,7 +7,7 @@ namespace Cxt1024Bridge
 {
     internal sealed class WindowsChooserRecord
     {
-        internal string Kind, Id, Title;
+        internal string Kind, Id, Title, CompletionRevision;
         internal AiTaskState State;
         public override string ToString() { return Title; }
     }
@@ -99,8 +99,9 @@ namespace Cxt1024Bridge
                 record.State == AiTaskState.WaitingForInput ? Color.DarkOrange :
                 record.State == AiTaskState.Error ? Color.Firebrick : Color.Gray;
             using (var brush = new SolidBrush(color)) e.Graphics.FillRectangle(brush, e.Bounds.X + 12, e.Bounds.Y + 16, 14, 14);
-            string state = record.State == AiTaskState.Thinking ? "运行中" : record.State == AiTaskState.Completed ? "新完成" :
-                record.State == AiTaskState.WaitingForInput ? "等待输入" : record.State == AiTaskState.Error ? "出错" : "空闲 / 已查看";
+            bool isTask = _group.SelectedIndex == 0;
+            string state = record.State == AiTaskState.Thinking ? "运行中" : record.State == AiTaskState.Completed ? (isTask ? "完成未查看" : "新完成") :
+                record.State == AiTaskState.WaitingForInput ? "等待输入" : record.State == AiTaskState.Error ? "出错" : (isTask ? "空闲 / 已查看 / 已停止" : "空闲 / 已查看");
             TextRenderer.DrawText(e.Graphics, record.Title + "  ·  " + state, Font,
                 new Rectangle(e.Bounds.X + 38, e.Bounds.Y + 12, e.Bounds.Width - 46, 28), e.ForeColor,
                 TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine);

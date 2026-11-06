@@ -348,14 +348,15 @@
     </section>
 
     <section class="section keyboard-only">
-      <div class="section-header"><h2>ChatGPT 六任务状态灯</h2><p>所有层中，键1、2、3、5、6、7始终对应任务1–6并显示实时状态；当前层指示灯另外叠加显示。</p></div>
+      <div class="section-header"><h2>Codex 六任务状态灯</h2><p>所有层中，键1、2、3、5、6、7始终对应任务1–6并显示实时状态；当前层指示灯另外叠加显示。</p></div>
       <div class="status-grid">
-        <div class="status" style="--status:#ffffff"><span class="status-light" style="border:1px solid #d0d5dd"></span><strong>白色 · 空闲 / 已查看</strong><small>任务没有未处理状态。</small></div>
-        <div class="status thinking" style="--status:#0000ff"><span class="status-light"></span><strong>深蓝动态 · 思考中</strong><small>亮度流动/闪烁，表示任务正在运行。</small></div>
-        <div class="status" style="--status:#00b000"><span class="status-light"></span><strong>深绿色 · 已完成</strong><small>新结果尚未查看；打开任务后恢复白色。</small></div>
-        <div class="status" style="--status:#ffb000"><span class="status-light"></span><strong>琥珀黄 · 等待输入</strong><small>任务暂停，正在等你的回答或操作。</small></div>
-        <div class="status" style="--status:#ff0000"><span class="status-light"></span><strong>红色 · 出错</strong><small>任务出现错误，需要打开检查。</small></div>
+        <div class="status" style="--status:#ffffff"><span class="status-light" style="border:1px solid #d0d5dd"></span><strong>白色 · 空闲 / 已查看</strong><small>已查看完成结果、尚未运行或手动停止；停止不算错误。</small></div>
+        <div class="status thinking" style="--status:#0000ff"><span class="status-light"></span><strong>深蓝动态 · 运行中</strong><small>亮度流动/闪烁，表示任务正在运行。</small></div>
+        <div class="status" style="--status:#00b000"><span class="status-light"></span><strong>深绿色 · 完成未查看</strong><small>通过 12E4 任务键或 Xbox 选择打开后转白。</small></div>
+        <div class="status" style="--status:#ffb000"><span class="status-light"></span><strong>琥珀黄 · 等待输入</strong><small>正在等你的回答或操作；边工作边提问也亮黄。</small></div>
+        <div class="status" style="--status:#ff0000"><span class="status-light"></span><strong>红色 · 出错</strong><small>任务明确失败；手动停止不会亮红灯。</small></div>
       </div>
+      <p>Mac 与 Windows 使用同一规则：通过 12E4 任务键或 Xbox 选择面板成功打开已完成任务后转白；查看确认只对应当前轮次并持久保存，重启 Bridge 后仍为白色。尚未查看的完成保持绿色；下一轮运行转蓝、完成后重新亮绿。手动停止转白，不算错误。等待你回答时亮黄，包括边工作边提问；对应问题全部回答后，若仍在运行则转蓝，最终完成转绿。tmux 会话继续用“新完成亮绿、长按切入确认后转白”的规则。</p>
     </section>
 
     <section class="section keyboard-only">
@@ -385,6 +386,7 @@
           <li>Bridge 优先通过官方 Codex App Server 的稳定 <code>stdio</code> JSONL 接口调用 <code>thread/list</code>，获取任务 ID、标题、顺序与 rollout 路径。</li>
           <li>本机只读验证中，官方接口前12个线程与原本地目录 <strong>12/12 ID 一致</strong>；接口不可用时自动回退到只读本地目录，30秒后重试。</li>
           <li>ChatGPT 桌面应用使用另一 App Server 进程，独立连接会把桌面线程报告为 <code>notLoaded</code>，所以实时蓝/绿/黄/红任务灯继续读取双方共享的 rollout 事件日志。</li>
+          <li>本地 Codex 任务若在电脑关机或重启前仍记为运行、且没有结束事件，Bridge 会根据本机启动时间将这次中断恢复为白色；已有完成记录按是否已查看保持绿色或白色。Bridge 不凭运行时长判定完成。同一次开机期间若缺少结束记录，仍无法可靠确认任务是否已结束。</li>
           <li>任务聚焦、语音与界面工具仍使用深链、UI Automation 和现有快捷键；本阶段的官方接口接入严格只读，不会启动、恢复、分叉、中断或修改任务。</li>
           <li>诊断命令：<code>Cxt12E4Bridge.exe --codex-app-server-probe</code>。Codex CLI 不在默认目录时，可设置 <code>CXT_CODEX_PATH</code>。</li>
         </ul></div>
@@ -420,7 +422,7 @@
 
     <footer>
       <span>CXT 12E4 + Xbox · Windows Bridge 配置说明</span>
-      <span>更新：2026-10-20 · 修订：20261020-codex-tab · 配置源：WindowsLayerProfiles / ActionEngine / QMK firmware</span>
+      <span>更新：2026-11-06 · 修订：20261106-side-panel · 配置源：WindowsLayerProfiles / ActionEngine / QMK firmware</span>
     </footer>
   </div>
 

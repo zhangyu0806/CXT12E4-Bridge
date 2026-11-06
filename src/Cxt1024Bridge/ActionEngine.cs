@@ -19,7 +19,7 @@ namespace Cxt1024Bridge
         private readonly int[] _lastScrollLayer = new int[5];
         private readonly EncoderGesture[] _lastScrollDirection = new EncoderGesture[5];
 
-        internal event Action<int> TaskSlotOpened;
+        internal event Action<ChatGptTaskStatusSlot> TaskSlotOpened;
         internal event Action<TerminalSessionTarget> TerminalSessionOpened;
 
         internal ActionEngine(ActionDispatcher dispatcher, LayerManager layers, ChatGptAutomation chatGpt)
@@ -423,11 +423,12 @@ namespace Cxt1024Bridge
             int previous = _lastTaskTap[slot - 1];
             bool doubleTap = previous != 0 && unchecked(now - previous) >= 0 && unchecked(now - previous) <= 350;
             _lastTaskTap[slot - 1] = doubleTap ? 0 : now;
-            if (_chatGpt.SwitchTaskSlot(slot, doubleTap))
+            ChatGptTaskStatusSlot snapshot;
+            if (_chatGpt.SwitchTaskSlot(slot, doubleTap, out snapshot))
             {
-                Action<int> opened = TaskSlotOpened;
+                Action<ChatGptTaskStatusSlot> opened = TaskSlotOpened;
                 if (opened != null)
-                    opened(slot);
+                    opened(snapshot);
             }
         }
 
@@ -435,11 +436,12 @@ namespace Cxt1024Bridge
         {
             _chatGpt.ClearReasoningSelectionMemory();
             _lastTaskTap[slot - 1] = 0;
-            if (_chatGpt.SwitchTaskSlot(slot, true))
+            ChatGptTaskStatusSlot snapshot;
+            if (_chatGpt.SwitchTaskSlot(slot, true, out snapshot))
             {
-                Action<int> opened = TaskSlotOpened;
+                Action<ChatGptTaskStatusSlot> opened = TaskSlotOpened;
                 if (opened != null)
-                    opened(slot);
+                    opened(snapshot);
             }
         }
 

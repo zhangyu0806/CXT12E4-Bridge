@@ -1299,45 +1299,7 @@ namespace Cxt1024Bridge
             Assert(missedActiveCycleSlots[0].State == AiTaskState.Completed, "idle to newer completed revision latches even when the active cycle occurred between polls");
             Assert(TerminalWindowActivator.IsTerminalProcessName("WindowsTerminal") && TerminalWindowActivator.IsTerminalProcessName("wt"), "terminal focus accepts supported Windows Terminal process names");
             Assert(!TerminalWindowActivator.IsTerminalProcessName("notepad"), "terminal focus rejects a recycled HWND owned by another process");
-            string completed = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\"}}";
-            string started = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"task_started\"}}";
-            string aborted = "{\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}";
-            Assert(ChatGptTaskStatusReader.ReadTextStateForTest(completed) == AiTaskState.Idle, "completed task state");
-            Assert(ChatGptTaskStatusReader.ReadTextStateForTest(completed + started) == AiTaskState.Thinking, "active task state");
-            Assert(ChatGptTaskStatusReader.ReadTextStateForTest(started + aborted) == AiTaskState.Error, "aborted task state");
-            string pending = started + "\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call\",\"id\":\"fc1\",\"name\":\"request_user_input\",\"call_id\":\"call1\"}}";
-            string answered = pending + "\n{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"output\":\"ok\"}}";
-            Assert(ChatGptTaskStatusReader.ReadTextStateForTest(pending) == AiTaskState.WaitingForInput, "pending user-input task state");
-            Assert(ChatGptTaskStatusReader.ReadTextStateForTest(answered) == AiTaskState.Thinking, "answered user-input task state");
-            var completionLatch = new ChatGptCompletionLatch();
-            var latchSlots = new List<ChatGptTaskStatusSlot>
-            {
-                new ChatGptTaskStatusSlot
-                {
-                    Slot = 1,
-                    ThreadId = "self-test-thread",
-                    State = AiTaskState.Idle,
-                    Evidence = "task_complete"
-                }
-            };
-            completionLatch.Apply(latchSlots);
-            Assert(latchSlots[0].State == AiTaskState.Idle, "old completion starts acknowledged");
-            latchSlots[0].State = AiTaskState.Thinking;
-            latchSlots[0].Evidence = "task_started";
-            completionLatch.Apply(latchSlots);
-            latchSlots[0].State = AiTaskState.Idle;
-            latchSlots[0].Evidence = "task_complete";
-            completionLatch.Apply(latchSlots);
-            Assert(latchSlots[0].State == AiTaskState.Completed, "new completion latches green");
-            latchSlots[0].State = AiTaskState.Idle;
-            latchSlots[0].Evidence = "task_complete";
-            completionLatch.Apply(latchSlots);
-            Assert(latchSlots[0].State == AiTaskState.Completed, "green persists across polls");
-            Assert(completionLatch.Acknowledge("self-test-thread"), "completion acknowledgement accepted");
-            latchSlots[0].State = AiTaskState.Idle;
-            latchSlots[0].Evidence = "task_complete";
-            completionLatch.Apply(latchSlots);
-            Assert(latchSlots[0].State == AiTaskState.Idle, "acknowledged completion returns white");
+            CodexTaskStateTests.Run();
 
             var assigned = new ChatGptThreadSlot[6];
             for (int i = 0; i < assigned.Length; i++)
