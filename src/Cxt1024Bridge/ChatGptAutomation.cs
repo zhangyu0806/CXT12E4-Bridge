@@ -198,6 +198,7 @@ namespace Cxt1024Bridge
 
         internal bool SwitchTaskSlot(int slot, bool focusWindow, out ChatGptTaskStatusSlot opened)
         {
+            var elapsed = Stopwatch.StartNew();
             opened = null;
             if (slot < 1 || slot > 6)
                 throw new ArgumentOutOfRangeException("slot");
@@ -209,34 +210,25 @@ namespace Cxt1024Bridge
                 {
                     // Capture identity and completion before dispatch. A new turn
                     // finishing during navigation must remain unacknowledged.
-                    return ChatGptTaskStatusReader.OpenWithSnapshot(assigned,
+                    bool sent = ChatGptTaskStatusReader.OpenWithSnapshot(assigned,
                         delegate(ChatGptThreadSlot target) { return OpenThreadDeepLink(target, focusWindow); }, out opened);
+                    Logger.Info("Codex task slot " + slot + " dispatch_ms=" + elapsed.ElapsedMilliseconds + "; sent=" + sent);
+                    return sent;
                 }
                 Logger.Warn("ChatGPT stable task slot " + slot + " is unavailable.");
             }
             catch (Exception ex)
             {
-                Logger.Error("Unable to read ChatGPT task slots from its local catalog; falling back to UI Automation", ex);
+                Logger.Error("Unable to dispatch the assigned Codex task slot", ex);
             }
-
-            AutomationElement root = GetRoot();
-            if (root == null)
-                return false;
-
-            List<AutomationElement> tasks = FindSidebarTasks(root);
-            if (slot > tasks.Count)
-            {
-                Logger.Warn("ChatGPT task slot " + slot + " is unavailable; only " + tasks.Count + " sidebar tasks were found.");
-                return false;
-            }
-            bool invoked = Invoke(tasks[slot - 1]);
-            if (invoked && focusWindow)
-                FocusWindow();
-            return invoked;
+            // Sidebar position is not the stable slot identity: never open an
+            // unrelated visible row when the catalog has not initialized.
+            return false;
         }
 
         internal bool OpenThreadDeepLink(ChatGptThreadSlot thread, bool focusWindow)
         {
+            Interlocked.Increment(ref _workspaceRequest);
             if (thread == null)
                 return false;
             Guid parsed;
@@ -245,11 +237,11 @@ namespace Cxt1024Bridge
             IntPtr previousForeground = NativeMethods.GetForegroundWindow();
             if (focusWindow && !FocusWindow())
                 Logger.Warn("ChatGPT could not be focused before opening the requested task; retrying after the deep link.");
-            var start = new ProcessStartInfo("codex://threads/" + thread.Id)
-            {
-                UseShellExecute = true
-            };
-            Process.Start(start);
+            string executable;
+            var start = TryGetCodexExecutable(FindWindow(), out executable)
+                ? BuildThreadNavigationRequest(executable, thread.Id)
+                : new ProcessStartInfo("codex://threads/" + thread.Id) { UseShellExecute = true };
+            using (Process launched = Process.Start(start)) { }
             Logger.Info(
                 "ChatGPT task slot opened via deep link: " + ShortTitle(thread.Title) +
                 " (" + thread.Id + "); focus=" + focusWindow);
@@ -542,31 +534,10 @@ namespace Cxt1024Bridge
 
         internal bool ToggleSidePanel(IntPtr expectedWindow, Func<bool> contextIsCurrent)
         {
-            try
-            {
-                Func<bool> guard = delegate
-                {
-                    return contextIsCurrent != null && contextIsCurrent() &&
-                        expectedWindow != IntPtr.Zero && NativeMethods.GetForegroundWindow() == expectedWindow;
-                };
-                bool sent = SidePanelControl.Dispatch(guard,
-                    delegate { return FindSidePanelToggle(GetRoot(expectedWindow)); },
-                    delegate(AutomationElement button)
-                    {
-                        // Recheck the live element as well as the input context immediately before invoking.
-                        return IsSidePanelToggle(button) && guard() && Invoke(button);
-                    });
-                if (sent)
-                    Logger.Info("L1 key 10 invoked the bound window's side panel button; UI transition not yet confirmed.");
-                else
-                    Logger.Warn("L1 key 10 cancelled or no unique enabled side panel button; no keyboard shortcut sent.");
-                return sent;
-            }
-            catch (Exception ex)
-            {
-                Logger.Error("Unable to invoke the side panel button; no keyboard shortcut sent", ex);
-                return false;
-            }
+            // Windows 26.1103: toggleSidePanel switches Chat and full tab view.
+            // stepWorkspaceLayout restores full -> split, then toggles split
+            // and Chat. It remains available when the old UI button is absent.
+            return DispatchPanelShortcut(false, expectedWindow, contextIsCurrent);
         }
 
         private static bool IsSidePanelToggle(AutomationElement button)
@@ -740,11 +711,9 @@ namespace Cxt1024Bridge
             return true;
         }
 
-        internal bool ToggleSidebar()
+        internal bool ToggleSidebar(IntPtr expectedWindow, Func<bool> contextIsCurrent)
         {
-            AutomationElement root = GetRoot();
-            AutomationElement toggle = FindSidebarToggle(root);
-            return toggle != null && Invoke(toggle);
+            return DispatchPanelShortcut(true, expectedWindow, contextIsCurrent);
         }
 
         private static AutomationElement FindSidebarToggle(AutomationElement root)
@@ -799,6 +768,7 @@ namespace Cxt1024Bridge
 
         internal bool NavigateAdjacentSidebarTask(bool forward)
         {
+            Interlocked.Increment(ref _workspaceRequest);
             AutomationElement root = GetRoot();
             if (root == null)
                 return false;
@@ -806,7 +776,8 @@ namespace Cxt1024Bridge
             {
                 // The broad .sidebar-item query also includes project headings
                 // such as CXT12E4, AINovel and PRD. FindSidebarTasks keeps only
-                // ListItem -> same-name invokable Button task rows.
+                // ListItem -> primary invokable Button task rows, including
+                // rows whose accessible label adds unread/waiting status.
                 List<AutomationElement> tasks = FindSidebarTasks(root);
                 var scores = new List<int>(tasks.Count);
                 for (int i = 0; i < tasks.Count; i++)
@@ -1553,6 +1524,11 @@ namespace Cxt1024Bridge
 
         private static IntPtr FindWindow()
         {
+            // The foreground packaged window is both cheaper to identify and
+            // unambiguous when several Codex windows exist.
+            IntPtr foreground = NativeMethods.GetForegroundWindow();
+            string executable;
+            if (TryGetCodexExecutable(foreground, out executable)) return foreground;
             Process[] processes = Process.GetProcessesByName("ChatGPT");
             try
             {
@@ -1615,7 +1591,7 @@ namespace Cxt1024Bridge
                     System.Windows.Rect bounds = SafeBounds(item);
                     if (bounds.IsEmpty || bounds.Left > sidebarItemLeftLimit)
                         continue;
-                    AutomationElement button = FindDescendantButton(item, name);
+                    AutomationElement button = FindSidebarTaskButton(item, name);
                     if (button == null || !SafeEnabled(button) || !SupportsInvoke(button))
                         continue;
                     candidates.Add(new TaskCandidate { Element = button, Top = bounds.Top, Left = bounds.Left, Name = name });
@@ -1647,6 +1623,32 @@ namespace Cxt1024Bridge
                 new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
                 new PropertyCondition(AutomationElement.NameProperty, name));
             return parent.FindFirst(TreeScope.Descendants, condition);
+        }
+
+        private static AutomationElement FindSidebarTaskButton(AutomationElement item, string rowName)
+        {
+            AutomationElement exact = FindDescendantButton(item, rowName);
+            if (exact != null) return exact;
+            var condition = new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button);
+            AutomationElementCollection buttons = item.FindAll(TreeScope.Descendants, condition);
+            AutomationElement match = null;
+            foreach (AutomationElement button in buttons)
+            {
+                if (!IsDecoratedSidebarTaskButton(rowName, SafeName(button), SafeClassName(button)) ||
+                    SafeOffscreen(button) || !SafeEnabled(button) || !SupportsInvoke(button)) continue;
+                if (match != null) return null;
+                match = button;
+            }
+            return match;
+        }
+
+        internal static bool IsDecoratedSidebarTaskButton(string rowName, string buttonName, string className)
+        {
+            // Status belongs to the row label, not the task title. Still require
+            // the primary sidebar row class, so archive/menu controls cannot match.
+            return !string.IsNullOrWhiteSpace(rowName) && !string.IsNullOrWhiteSpace(buttonName) &&
+                HasCssClassToken(className, "sidebar-item") &&
+                rowName.IndexOf(buttonName, StringComparison.Ordinal) >= 0;
         }
 
         private static bool InvokeButton(AutomationElement root, params string[] names)

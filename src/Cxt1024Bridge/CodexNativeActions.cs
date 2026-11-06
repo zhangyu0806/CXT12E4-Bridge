@@ -1,13 +1,70 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 
 namespace Cxt1024Bridge
 {
     internal sealed partial class ChatGptAutomation
     {
+        private bool DispatchPanelShortcut(bool sidebar, IntPtr expectedWindow, Func<bool> context)
+        {
+            Interlocked.Increment(ref _workspaceRequest);
+            string executable;
+            Func<bool> guard;
+            if (expectedWindow == IntPtr.Zero || NativeMethods.GetForegroundWindow() != expectedWindow ||
+                !TryBindCodexInput(context, out executable, out guard)) return false;
+            bool sent = DispatchWindowShortcut(guard, delegate
+            {
+                InputSender.Chord(sidebar ? Vk.S : Vk.B, Vk.LeftControl, Vk.LeftShift);
+            });
+            if (sent) Logger.Info(sidebar ? "Windows Codex sidebar shortcut dispatched." :
+                "L1 key 10 dispatched Windows workspace split/hide shortcut.");
+            return sent;
+        }
+
+        internal static bool DispatchWindowShortcut(Func<bool> guard, Action send)
+        {
+            if (guard == null || send == null || !guard()) return false;
+            send();
+            return true;
+        }
+
+        internal static ProcessStartInfo BuildThreadNavigationRequest(string executable, string threadId)
+        {
+            Guid id;
+            if (!IsPackagedCodexExecutable(executable) || !Guid.TryParse(threadId, out id))
+                throw new ArgumentException("Expected a packaged Codex executable and a thread UUID.");
+            // Deliver to the running app's second-instance handler directly;
+            // avoid Windows protocol association activation on every key press.
+            return new ProcessStartInfo(executable, "\"codex://threads/" + id.ToString("D") + "\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Path.GetDirectoryName(executable)
+            };
+        }
+
+        private static bool TryGetCodexExecutable(IntPtr window, out string executable)
+        {
+            executable = null;
+            if (window == IntPtr.Zero) return false;
+            uint processId;
+            NativeMethods.GetWindowThreadProcessId(window, out processId);
+            try
+            {
+                using (Process process = Process.GetProcessById(unchecked((int)processId)))
+                    executable = process.MainModule.FileName;
+                return IsPackagedCodexExecutable(executable) && File.Exists(executable);
+            }
+            catch (System.ComponentModel.Win32Exception) { return false; }
+            catch (InvalidOperationException) { return false; }
+            catch (ArgumentException) { return false; }
+        }
+
         internal bool NewTask(Func<bool> contextIsCurrent)
         {
+            Interlocked.Increment(ref _workspaceRequest);
             string executable;
             Func<bool> guard;
             if (!TryBindCodexInput(contextIsCurrent, out executable, out guard))
@@ -43,10 +100,12 @@ namespace Cxt1024Bridge
             Func<bool> guard;
             if (!TryBindCodexInput(contextIsCurrent, out executable, out guard))
                 return false;
+            IntPtr window = NativeMethods.GetForegroundWindow();
+            int request = Interlocked.Increment(ref _workspaceRequest);
             // Windows packaged Codex accepts a bare HTTP(S) argv entry and
             // forwards it to toggle-browser-panel through second-instance IPC.
             // Dispatch to this exact running executable, not a URL association.
-            return DispatchBuiltInBrowserRequest(executable, url, guard,
+            bool dispatched = DispatchBuiltInBrowserRequest(executable, url, guard,
                 delegate(ProcessStartInfo start)
                 {
                     using (Process launched = Process.Start(start))
@@ -55,6 +114,8 @@ namespace Cxt1024Bridge
                             throw new InvalidOperationException("No Codex launch process returned.");
                     }
                 }, delegate(string message) { Logger.Info("Browser native argv: " + message); });
+            if (dispatched) QueueBrowserSplit(window, url, guard, request);
+            return dispatched;
         }
 
         internal static bool IsPackagedCodexExecutable(string executable)

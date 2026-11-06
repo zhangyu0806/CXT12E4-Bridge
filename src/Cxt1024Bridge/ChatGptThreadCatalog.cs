@@ -70,7 +70,9 @@ namespace Cxt1024Bridge
         {
             if (slot < 1 || slot > SlotCount)
                 throw new ArgumentOutOfRangeException("slot");
-            Snapshot();
+            // The status monitor refreshes the catalog off the action queue.
+            // A key press must never wait for App Server / SQLite or contend
+            // with that I/O. Until the first refresh, no slot is assigned.
             lock (_gate)
                 return _slots[slot - 1] == null ? null : _slots[slot - 1].Clone();
         }

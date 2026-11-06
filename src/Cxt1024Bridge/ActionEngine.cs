@@ -405,10 +405,10 @@ namespace Cxt1024Bridge
                 case 4: _chatGpt.ForkCurrentTask(); break;
                 case 8: _chatGpt.ToggleTemporaryTask(); break;
                 case 9:
-                    if (_chatGpt.ToggleSidebar())
-                        Logger.Info("L1 key 9 invoked the ChatGPT left sidebar toggle.");
+                    if (_chatGpt.ToggleSidebar(expectedWindow, contextIsCurrent))
+                        Logger.Info("L1 key 9 dispatched the Windows sidebar shortcut.");
                     else
-                        Logger.Warn("L1 key 9 could not find the ChatGPT sidebar toggle.");
+                        Logger.Warn("L1 key 9 cancelled after its Codex window context changed.");
                     break;
                 case 10: _chatGpt.ToggleSidePanel(expectedWindow, contextIsCurrent); break;
                 case 11: _chatGpt.OpenInBuiltInBrowser("https://chatgpt.com/", contextIsCurrent); break;

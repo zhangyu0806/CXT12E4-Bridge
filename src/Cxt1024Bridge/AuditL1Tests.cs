@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace Cxt1024Bridge
 {
@@ -17,6 +18,8 @@ namespace Cxt1024Bridge
             ModelIntentTests.Run();
             SidePanelControlTests.Run();
             BrowserFocusChecks();
+            WorkspaceLayoutChecks();
+            CachedSlotChecks();
             MenuExpansionChecks();
             CompactPositionChecks();
             SidebarSelectionChecks();
@@ -82,6 +85,14 @@ namespace Cxt1024Bridge
                 "HTTP URL goes to exact Codex executable as one argument");
             Check(!request.UseShellExecute && request.CreateNoWindow,
                 "no OS URL association or console window");
+            const string threadId = "12345678-1234-1234-1234-123456789abc";
+            var navigation = ChatGptAutomation.BuildThreadNavigationRequest(executable, threadId);
+            Check(navigation.FileName == executable && navigation.Arguments == "\"codex://threads/" + threadId + "\"" &&
+                !navigation.UseShellExecute && navigation.CreateNoWindow, "thread navigation uses the exact packaged app");
+            bool invalidThread = false;
+            try { ChatGptAutomation.BuildThreadNavigationRequest(executable, threadId + "\" --bad"); }
+            catch (ArgumentException) { invalidThread = true; }
+            Check(invalidThread, "thread navigation rejects non-UUID arguments");
             string complex = "https://chatgpt.com/c/example?one=1&two=a%20b#part";
             Check(ChatGptAutomation.BuildBuiltInBrowserRequest(executable, complex).Arguments == "\"" + complex + "\"",
                 "query and fragment stay within the URL argument");
@@ -139,10 +150,114 @@ namespace Cxt1024Bridge
             Check(ChatGptAutomation.DispatchStandaloneNewTask(delegate { return true; }, send, report), "standalone command dispatches");
             Check(shortcuts == 1 && trace.Contains("newProjectlessTask") && trace.Contains("not yet confirmed"),
                 "standalone command is one shot and not claimed as UI confirmation");
+            shortcuts = 0;
+            Check(!ChatGptAutomation.DispatchWindowShortcut(null, send) &&
+                !ChatGptAutomation.DispatchWindowShortcut(delegate { return false; }, send) && shortcuts == 0,
+                "panel shortcuts require the original foreground window");
+            Check(ChatGptAutomation.DispatchWindowShortcut(delegate { return true; }, send) && shortcuts == 1,
+                "panel shortcut dispatch is immediate and one shot");
+        }
+
+        private static void WorkspaceLayoutChecks()
+        {
+            foreach (string name in new[] { "Enter split view", "进入分屏视图", "進入分割檢視", "Exit full view", "退出完整视图", "退出完整檢視" })
+                Check(ChatGptAutomation.IsEnterSplitName(name), "localized full-view exit");
+            foreach (string name in new[] { "Hide tabs", "隐藏标签页", "隱藏分頁" })
+                Check(ChatGptAutomation.IsHideWorkspaceTabsName(name) && !ChatGptAutomation.IsEnterSplitName(name),
+                    "already split controls cannot be toggled again");
+            Check(!ChatGptAutomation.IsEnterSplitName("Enter split view notes"), "exact layout names only");
+            Check(ChatGptAutomation.IsBrowserAddress("chatgpt.com", Url), "display address without scheme");
+            Check(ChatGptAutomation.IsBrowserAddress("https://chatgpt.com/?test=1", Url), "homepage query remains target");
+            Check(!ChatGptAutomation.IsBrowserAddress("chatgpt.com.evil.example", Url) &&
+                !ChatGptAutomation.IsBrowserAddress("https://example.com/", Url) &&
+                !ChatGptAutomation.IsBrowserAddress("https://chatgpt.com/c/old", Url), "wait for requested page before changing layout");
+            var root = new System.Windows.Rect(-2000, -1000, 1900, 1000);
+            Check(ChatGptAutomation.IsWorkspaceHeader(root, new System.Windows.Rect(-150, -960, 30, 30), true),
+                "header geometry supports negative monitor coordinates");
+            Check(!ChatGptAutomation.IsWorkspaceHeader(root, new System.Windows.Rect(-150, -800, 30, 30), true),
+                "page content cannot impersonate header layout button");
+            int reads = 0, invokes = 0, waits = 0;
+            Func<bool> enter = delegate { invokes++; return true; };
+            Action<int> wait = delegate { waits++; };
+            Check(ChatGptAutomation.EnsureBrowserSplit(delegate { return true; }, delegate
+            {
+                reads++;
+                return reads < 3 ? BrowserWorkspaceLayout.Unknown :
+                    reads < 5 ? BrowserWorkspaceLayout.Full : BrowserWorkspaceLayout.Split;
+            }, enter, wait), "asynchronous URL and layout transitions confirmed");
+            Check(invokes == 1 && reads == 20, "slow layout transition is never toggled twice");
+            invokes = 0;
+            Check(ChatGptAutomation.EnsureBrowserSplit(delegate { return true; }, delegate { return BrowserWorkspaceLayout.Split; }, enter, wait) && invokes == 0,
+                "already split browser stays split");
+            reads = 0;
+            Check(ChatGptAutomation.EnsureBrowserSplit(delegate { return true; }, delegate
+            {
+                reads++;
+                return reads >= 9 && reads < 12 ? BrowserWorkspaceLayout.Full : BrowserWorkspaceLayout.Split;
+            }, enter, wait) && invokes == 1, "late native URL arrival cannot undo an early split confirmation");
+            invokes = 0;
+            bool current = true;
+            Check(!ChatGptAutomation.EnsureBrowserSplit(delegate { return current; }, delegate
+                { current = false; return BrowserWorkspaceLayout.Full; }, enter, wait) && invokes == 0,
+                "focus change during UIA lookup cancels before invocation");
+            reads = 0;
+            Check(!ChatGptAutomation.EnsureBrowserSplit(delegate { return true; }, delegate
+                { reads++; return BrowserWorkspaceLayout.Full; }, enter, wait) && invokes == 1 && reads == 20,
+                "unconfirmed provider action times out without retrying");
+            Check(!ChatGptAutomation.EnsureBrowserSplit(null, delegate { throw new Exception("must not read"); }, enter, wait),
+                "missing browser guard does nothing");
+        }
+
+        private static void CachedSlotChecks()
+        {
+            int reads = 0;
+            using (var entered = new ManualResetEvent(false))
+            using (var release = new ManualResetEvent(false))
+            {
+                var registry = new ChatGptTaskSlotRegistry(delegate(int count)
+                {
+                    if (Interlocked.Increment(ref reads) > 1)
+                    {
+                        entered.Set();
+                        if (!release.WaitOne(5000)) throw new TimeoutException("test catalog release missing");
+                    }
+                    return new List<ChatGptThreadSlot> { new ChatGptThreadSlot { Id = "cached-task", Title = "task" } };
+                });
+                Check(registry.GetSlot(1) == null && reads == 0, "cold key never starts catalog I/O");
+                registry.Snapshot();
+                var cached = registry.GetSlot(1);
+                cached.Title = "caller changed clone";
+                Check(registry.GetSlot(1).Title == "task" && reads == 1, "cached slots are isolated clones");
+                Exception workerError = null;
+                var worker = new Thread(delegate()
+                {
+                    try { registry.Snapshot(); }
+                    catch (Exception ex) { workerError = ex; }
+                });
+                worker.IsBackground = true;
+                worker.Start();
+                try
+                {
+                    Check(entered.WaitOne(1000), "background refresh entered blocked catalog");
+                    var clock = System.Diagnostics.Stopwatch.StartNew();
+                    Check(registry.GetSlot(1).Id == "cached-task", "key keeps stable slot during blocked refresh");
+                    Check(clock.ElapsedMilliseconds < 200 && reads == 2, "key does not wait for catalog lock or invoke reader");
+                }
+                finally { release.Set(); worker.Join(2000); }
+                Check(workerError == null, "background refresh completed normally");
+            }
         }
 
         private static void SidebarSelectionChecks()
         {
+            Check(ChatGptAutomation.IsDecoratedSidebarTaskButton("未读 修复键盘", "修复键盘", "group sidebar-item bg-primary-ghost-hover"),
+                "unread label keeps primary task button");
+            Check(ChatGptAutomation.IsDecoratedSidebarTaskButton("修复键盘 需要用户输入", "修复键盘", "sidebar-item"),
+                "waiting status keeps primary task button");
+            Check(!ChatGptAutomation.IsDecoratedSidebarTaskButton("未读 修复键盘", "修复", "hover:sidebar-item") &&
+                !ChatGptAutomation.IsDecoratedSidebarTaskButton("未读 修复键盘", "归档", "sidebar-item") &&
+                !ChatGptAutomation.IsDecoratedSidebarTaskButton("未读 修复键盘", "", "sidebar-item"),
+                "decoration fallback rejects unrelated or nonprimary buttons");
             // A, B(X), C, D(X), E: names intentionally repeat, but the selection
             // resolver consumes only authoritative selection scores, never names.
             string[] titles = { "A", "X", "C", "X", "E" };

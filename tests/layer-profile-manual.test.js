@@ -49,6 +49,9 @@ assert.match(codex.enc[0][3], /Astra轻度/);
 assert.match(codex.notes.join(' '), /GPT-6 Sol.*GPT-6 Astra/);
 assert.match(codex.keys[10][1], /Codex 内置浏览器直接打开 ChatGPT 首页/);
 assert.match(codex.keys[10][1], /长按切 tmux session 03/);
+assert.match(codex.keys[8][1], /Ctrl\+Shift\+S/);
+assert.match(codex.keys[9][1], /Ctrl\+Shift\+B/);
+assert.match(codex.keys[10][1], /保留聊天.*右侧分栏/);
 // Legacy layer=0 and invalid URLs are exercised by manual-navigation.test.js
 // and the controller DOM harness through the actual shared navigation module.
 const commander = layers.find(layer => layer.n === 6);
