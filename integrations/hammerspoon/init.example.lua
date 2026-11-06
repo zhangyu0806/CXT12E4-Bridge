@@ -20,12 +20,23 @@ assert(workspaceLayouts.start(wm, config))
 wm.workspaceLayouts = workspaceLayouts
 wm.start()
 
+-- Optional Win+Shift screen navigation. Copy screen_navigation.lua first.
+-- Requires the external remapper's Hyper+H/J/K/L channels (see README).
+local enableScreenNavigation = false
+if enableScreenNavigation then
+    screenNavigation = require("screen_navigation")
+    screenNavigation.start(wm)
+end
+
 -- The module's compatibility bindings use Ctrl+Alt+Cmd+Shift. X/C/L use
 -- private F17/F18/F19 with the existing T90 remapper. These extra bindings
 -- also make the same actions directly usable without that external remapper.
 local modifiers = { "ctrl", "alt", "cmd", "shift" }
 local extraHotkeys = {}
-for key, action in pairs({ x="workspaceTerminal", c="workspaceOffice", l="portraitMaximize" }) do
+local aliases = { x="workspaceTerminal", c="workspaceOffice" }
+-- Navigation owns Hyper+L when enabled; the portrait action still uses F19.
+if not enableScreenNavigation then aliases.l = "portraitMaximize" end
+for key, action in pairs(aliases) do
     local requested = action
     extraHotkeys[#extraHotkeys + 1] = hs.hotkey.bind(modifiers, key,
         function() wm.dispatch(requested) end)
@@ -33,6 +44,7 @@ end
 
 local previousShutdown = hs.shutdownCallback
 hs.shutdownCallback = function()
+    if enableScreenNavigation then screenNavigation.stop() end
     workspaceLayouts.stop()
     wm.stop()
     for _, hotkey in ipairs(extraHotkeys) do hotkey:delete() end

@@ -20,8 +20,9 @@ python3 integrations/hammerspoon/tests/run.py
 | `test_layout_failure_diagnostics.lua` | 3 | 失败信息、恢复及真实用户取消 |
 | `test_routing.lua` | 3 | 布局快捷键路由和菜单 |
 | `test_placement.lua` | 2 | Claude 布局和默认配置 |
-| **合计** | **170** | |
+| `test_screen_navigation.lua` | 19 | 按编号循环移屏、拔插与重排、尺寸与恢复链路、上下物理方向、无效目标无副作用、可选初始化无 L 冲突 |
+| **合计** | **189** | |
 
-默认加载公开包中的源码和示例角色占位符。可设置绝对路径 `WM_TEST_SOURCE`、`LAYOUT_TEST_SOURCE` 对比其他源码；显示器默认值必须与公开测试夹具相同。测试夹具中的 `REPLACE_WITH_*` 和 `TEST_UNUSED_SCREEN_UUID` 是合成标识，不对应真实设备。
+默认加载公开包中的源码和示例角色占位符。可设置绝对路径 `WM_TEST_SOURCE`、`LAYOUT_TEST_SOURCE`、`SCREEN_NAVIGATION_TEST_SOURCE` 对比其他源码；显示器默认值必须与公开测试夹具相同。测试夹具中的 `REPLACE_WITH_*` 和 `TEST_UNUSED_SCREEN_UUID` 是合成标识，不对应真实设备。
 
 这些检查不证明实体键盘映射、辅助功能授权、真实应用启动速度或 macOS 原生全屏动画时序；这些需要在自己的设备上验证。
