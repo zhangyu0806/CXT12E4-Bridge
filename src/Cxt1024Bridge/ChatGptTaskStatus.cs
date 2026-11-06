@@ -46,7 +46,10 @@ namespace Cxt1024Bridge
             {
                 string evidence;
                 string completionRevision;
-                AiTaskState state = ReadRolloutState(threads[i].RolloutPath, out evidence, out completionRevision);
+                CodexRolloutState parsed = CodexRolloutState.ReadFile(ChatGptThreadCatalog.NormalizeFileSystemPath(threads[i].RolloutPath),
+                    CodexQuestionIgnoreStore.Default.ForThread(threads[i].Id));
+                AiTaskState state = parsed.State;
+                evidence = parsed.Evidence; completionRevision = parsed.CompletionRevision;
                 result.Add(new ChatGptTaskStatusSlot
                 {
                     Slot = i + 1,

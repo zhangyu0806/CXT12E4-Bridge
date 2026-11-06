@@ -295,7 +295,7 @@ class Tests(unittest.TestCase):
             h.atomic_json(Path(tmp)/'status-cache.json',{'terminalSlots':{'$1:10:11':1},'taskSeen':{'old':True},'taskAck':{'a':['turn-a']}})
             h.main()
             cache=json.loads((Path(tmp)/'status-cache.json').read_text())
-            self.assertEqual(cache,{'terminalSlots':{'$1:10:11':1},'taskAck':{'a':['turn-a']},'taskSlots':[None]*6})
+            self.assertEqual(cache,{'terminalSlots':{'$1:10:11':1},'taskAck':{'a':['turn-a']},'taskSlots':[None]*6,'ignoredQuestions':{}})
     def test_multiple_clients_refused(self):
         with patch.object(h,'clients',return_value=[{'client_tty':'a'},{'client_tty':'b'}]):
             with self.assertRaises(RuntimeError):h.active_client()
@@ -425,7 +425,7 @@ class TaskSlotTests(unittest.TestCase):
     def test_status_migrates_displayed_order_and_persists_it_across_restarts(self):
         cache={'tasks':[{'id':'a'},{'id':'b'},{'id':'c'}],'taskAck':{'c':['seen']}}
         rows=[self.row('a',10),self.row('b',30),self.row('c',20)]
-        def state(path,legacy):return ({'log-a':4,'log-b':2,'log-c':3}[path],'seen' if path=='log-c' else '')
+        def state(path,legacy,ignored=()):return ({'log-a':4,'log-b':2,'log-c':3}[path],'seen' if path=='log-c' else '')
         with patch.object(h,'catalog',return_value=rows) as read,patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',side_effect=state):
             result=h.status(cache)
             read.assert_called_once_with(['a','b','c',None,None,None])
@@ -471,5 +471,67 @@ class TaskSlotTests(unittest.TestCase):
             reset=json.loads((Path(tmp)/'status-cache.json').read_text())
             self.assertEqual(reset['taskSlots'],cache['taskSlots'])
             self.assertEqual(reset['taskAck'],cache['taskAck'])
+
+class QuestionIgnoreTests(unittest.TestCase):
+    def question(self,call='call',count=2):
+        return response('function_call',name='functions.request_user_input_async',call_id=call,
+                        arguments=json.dumps({'questions':[{'title':'同名问题 '+str(i)} for i in range(count)]}))
+    def snapshot(self,text,ignored=(),**kwargs):
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(text.encode());f.flush()
+            return h.rollout_snapshot(f.name,ignored_questions=ignored,include_questions=True,**kwargs)
+    def test_only_the_selected_question_is_ignored_and_restorable(self):
+        text=event('task_started',turn_id='turn')+self.question()
+        first=['turn','call',0];second=['turn','call',1]
+        one=self.snapshot(text,[first]);self.assertEqual(one['state'],4)
+        self.assertEqual([q['ignored'] for q in one['questions']],[True,False])
+        self.assertEqual(self.snapshot(text,[first,second])['state'],2)
+        self.assertEqual(self.snapshot(text,[second])['state'],4)
+        for wrong in ([['old','call',0]],[['turn','other',0]],[['turn','call',True]],[['turn','call',-1]]):
+            self.assertFalse(any(q['ignored'] for q in self.snapshot(text,wrong)['questions']))
+    def test_completion_is_not_acknowledged_by_ignore(self):
+        text=event('task_started',turn_id='turn')+self.question(count=1)+event('task_complete',turn_id='turn')
+        self.assertEqual(self.snapshot(text)['revision'],'')
+        done=self.snapshot(text,[['turn','call',0]])
+        self.assertEqual(done['state'],3);self.assertTrue(done['revision'])
+        # A synchronous request during an active turn cannot be ignored here.
+        active=event('task_started',turn_id='turn')+self.question(count=1)+response('function_call',name='request_user_input',call_id='sync')
+        self.assertEqual(self.snapshot(active,[['turn','call',0],['turn','sync',0]])['state'],4)
+    def test_new_turn_stop_error_reply_and_rejection(self):
+        text=event('task_started',turn_id='turn')+self.question(count=1);ignored=[['turn','call',0]]
+        self.assertEqual(self.snapshot(text+event('task_started',turn_id='next')+self.question(count=1),ignored)['state'],4)
+        for suffix,state in [(event('turn_aborted',reason='interrupted'),1),(event('task_complete',error='failed'),5),
+                              (response('function_call_output',call_id='call',output={'accepted':False}),2)]:
+            r=self.snapshot(text+suffix,ignored);self.assertEqual(r['state'],state);self.assertEqual(r['questions'],[])
+        reply=response('message',role='user',content=[{'type':'input_text','text':'<send_user_message_question_reply>'+json.dumps([{'questionItemId':json.dumps(['request_user_input_async','call',0]),'answer':'yes'}])+'</send_user_message_question_reply>'}])
+        self.assertEqual(self.snapshot(text+reply,ignored)['questions'],[])
+    def test_identity_guard_restart_restore_and_no_title_persistence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'log';path.write_text(event('task_started',turn_id='turn')+self.question(count=1))
+            rows=[{'id':t,'title':'同名任务','rollout_path':str(path),'recency_at_ms':i} for i,t in enumerate(['one','two'])]
+            cache={'taskSlots':['one','two'],'taskAck':{'one':['old-completion']}}
+            with patch.object(h,'catalog',return_value=rows),patch.object(h,'panes',return_value=[]):
+                q=h.question_list(cache);self.assertEqual([x['key'] for x in q],[1,2]);self.assertEqual(q[0]['title'],'同名问题 0')
+                h.set_question_ignored(cache,'one','turn','call',0,True)
+                restored=json.loads(json.dumps(cache));self.assertEqual([t['state'] for t in h.status(restored)['tasks']],[2,4])
+                self.assertEqual(cache['taskAck'],{'one':['old-completion']});self.assertNotIn('同名问题',json.dumps(cache,ensure_ascii=False))
+                h.set_question_ignored(cache,'one','turn','call',0,False);self.assertEqual(h.status(cache)['tasks'][0]['state'],4)
+                h.set_question_ignored(cache,'one','turn','call',0,True)
+                path.write_text(event('task_started',turn_id='next')+self.question(count=1))
+                before=json.dumps(cache)
+                with self.assertRaisesRegex(RuntimeError,'已结束或已更新'):h.set_question_ignored(cache,'one','turn','call',0,True)
+                self.assertEqual(json.dumps(cache),before);self.assertEqual(h.status(cache)['tasks'][0]['state'],4)
+            with patch.object(h,'catalog',return_value=[]):
+                with self.assertRaises(RuntimeError):h.set_question_ignored(cache,'one','next','call',0,True)
+            with patch.object(h,'ROOT',Path(tmp)),patch('sys.argv',['helper','reset']),patch('builtins.print'):
+                (Path(tmp)/'status-cache.json').write_text(json.dumps(cache));h.main()
+                self.assertEqual(json.loads((Path(tmp)/'status-cache.json').read_text())['ignoredQuestions'],cache['ignoredQuestions'])
+    def test_preboot_or_unidentified_questions_cannot_be_managed(self):
+        self.assertEqual(self.snapshot(event('task_started')+self.question())['questions'],[])
+        rows=[{'type':'session_meta','payload':{'source':'exec'}},
+              {'timestamp':'2026-10-22T00:00:00Z','type':'event_msg','payload':{'type':'task_started','turn_id':'turn'}},
+              {'timestamp':'2026-10-22T00:00:01Z','type':'response_item','payload':{'type':'function_call','name':'request_user_input_async','call_id':'call'}}]
+        r=self.snapshot(''.join(json.dumps(x)+'\n' for x in rows),[['turn','call',0]],boot_time=h.event_time('2026-10-22T01:00:00Z'))
+        self.assertEqual(r['state'],1);self.assertEqual(r['questions'],[])
 
 if __name__=='__main__':unittest.main()

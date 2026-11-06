@@ -325,6 +325,7 @@ namespace Cxt1024Bridge
             if (_controller != null) _controller.Dispose();
             if (_profileSettings != null && !_profileSettings.IsDisposed) _profileSettings.Close();
             if (_chooser != null && !_chooser.IsDisposed) _chooser.Close();
+            if (_questionManager != null && !_questionManager.IsDisposed) _questionManager.Close();
             _hook.Dispose();
             _inputPump.Dispose();
             _triggers.Dispose();

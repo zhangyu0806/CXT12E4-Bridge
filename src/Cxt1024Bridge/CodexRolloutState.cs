@@ -14,6 +14,7 @@ namespace Cxt1024Bridge
         internal AiTaskState State = AiTaskState.Idle;
         internal string Evidence = "no-task-marker";
         internal string CompletionRevision = string.Empty;
+        internal readonly List<CodexPendingQuestion> Questions = new List<CodexPendingQuestion>();
 
         private sealed class Record
         {
@@ -21,13 +22,13 @@ namespace Cxt1024Bridge
             internal long Offset;
         }
 
-        internal static CodexRolloutState ReadFile(string path)
+        internal static CodexRolloutState ReadFile(string path, ISet<string> ignoredQuestions = null, bool includeQuestions = false)
         {
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
                 return new CodexRolloutState { Evidence = "no-rollout" };
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
                 FileShare.ReadWrite | FileShare.Delete))
-                return Read(stream, path, WindowsBootTime());
+                return Read(stream, path, WindowsBootTime(), ignoredQuestions, includeQuestions);
         }
 
         internal static CodexRolloutState ReadText(string text)
@@ -35,10 +36,10 @@ namespace Cxt1024Bridge
             return ReadText(text, null);
         }
 
-        internal static CodexRolloutState ReadText(string text, DateTimeOffset? bootTime)
+        internal static CodexRolloutState ReadText(string text, DateTimeOffset? bootTime, ISet<string> ignoredQuestions = null, bool includeQuestions = false)
         {
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(text ?? string.Empty)))
-                return Read(stream, string.Empty, bootTime);
+                return Read(stream, string.Empty, bootTime, ignoredQuestions, includeQuestions);
         }
 
         [DllImport("kernel32.dll")]
@@ -53,14 +54,14 @@ namespace Cxt1024Bridge
             catch (ArgumentOutOfRangeException) { return null; }
         }
 
-        private static CodexRolloutState Read(Stream stream, string path, DateTimeOffset? bootTime)
+        private static CodexRolloutState Read(Stream stream, string path, DateTimeOffset? bootTime, ISet<string> ignoredQuestions, bool includeQuestions)
         {
             var records = new List<Record>();
             var json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue, RecursionLimit = 128 };
             bool local = IsLocalRollout(stream, json);
             // The latest start establishes the active turn. Terminal records for
             // another turn cannot override it, even when delivered late.
-            foreach (Record record in ReadBackwards(stream, json))
+            foreach (Record record in ReadBackwards(stream, json, includeQuestions))
             {
                 records.Add(record);
                 var payload = Object(record.Value, "payload");
@@ -71,6 +72,7 @@ namespace Cxt1024Bridge
             var result = new CodexRolloutState();
             var pending = new HashSet<string>(StringComparer.Ordinal);
             var asyncPending = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+            var questionTitles = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             string activeTurn = string.Empty;
             bool authoritativeEnd = false;
             DateTimeOffset? started = null, activity = null;
@@ -95,6 +97,7 @@ namespace Cxt1024Bridge
                     result.CompletionRevision = string.Empty;
                     pending.Clear();
                     asyncPending.Clear();
+                    questionTitles.Clear();
                     continue;
                 }
                 if (activeTurn.Length != 0 && turn.Length != 0 && activeTurn != turn) continue;
@@ -152,6 +155,7 @@ namespace Cxt1024Bridge
                             var questions = new HashSet<int>();
                             for (int i = 0; i < (int)payload["question_count"]; i++) questions.Add(i);
                             asyncPending[call] = questions;
+                            if (includeQuestions) questionTitles[call] = (List<string>)payload["question_titles"];
                         }
                     }
                     if (kind == "function_call_output" || kind == "custom_tool_call_output")
@@ -187,8 +191,26 @@ namespace Cxt1024Bridge
                 }
             }
             bool successfulCompletion = result.State == AiTaskState.Completed;
+            int remaining = 0;
+            foreach (var pair in asyncPending)
+            {
+                var indices = new List<int>(pair.Value); indices.Sort();
+                foreach (int index in indices)
+                {
+                    var question = new CodexPendingQuestion { TurnId = activeTurn, CallId = pair.Key, Index = index };
+                    question.Ignored = activeTurn.Length != 0 && ignoredQuestions != null && ignoredQuestions.Contains(question.Key);
+                    if (!question.Ignored) remaining++;
+                    if (includeQuestions && activeTurn.Length != 0)
+                    {
+                        List<string> titles;
+                        question.Title = questionTitles.TryGetValue(pair.Key, out titles) && index < titles.Count ? titles[index] : string.Empty;
+                        if (string.IsNullOrEmpty(question.Title)) question.Title = "提问 " + (index + 1);
+                        result.Questions.Add(question);
+                    }
+                }
+            }
             if ((result.State == AiTaskState.Thinking || result.State == AiTaskState.WaitingForInput || successfulCompletion) &&
-                (pending.Count != 0 || asyncPending.Count != 0))
+                (pending.Count != 0 || remaining != 0))
             {
                 result.State = AiTaskState.WaitingForInput;
                 result.Evidence = "pending-user-request";
@@ -205,6 +227,7 @@ namespace Cxt1024Bridge
                 result.State = AiTaskState.Idle;
                 result.Evidence = "local-turn-interrupted-by-reboot";
                 result.CompletionRevision = string.Empty;
+                result.Questions.Clear();
             }
             return result;
         }
@@ -295,10 +318,22 @@ namespace Cxt1024Bridge
         private static int QuestionCount(Dictionary<string, object> payload, JavaScriptSerializer json)
         {
             object raw;
-            var arguments = payload.TryGetValue("arguments", out raw) ? Decode(raw, json) as Dictionary<string, object> : null;
+            var arguments = payload.TryGetValue("arguments", out raw) ? Decode(raw, json) as Dictionary<string, object> :
+                payload.TryGetValue("input", out raw) ? Decode(raw, json) as Dictionary<string, object> : null;
             var questions = arguments != null && arguments.TryGetValue("questions", out raw) ? raw as object[] : null;
             // Older records without arguments still require one real reply.
             return questions != null && questions.Length != 0 ? questions.Length : 1;
+        }
+
+        private static List<string> QuestionTitles(Dictionary<string, object> payload, JavaScriptSerializer json)
+        {
+            object raw;
+            var arguments = payload.TryGetValue("arguments", out raw) ? Decode(raw, json) as Dictionary<string, object> :
+                payload.TryGetValue("input", out raw) ? Decode(raw, json) as Dictionary<string, object> : null;
+            var questions = arguments != null && arguments.TryGetValue("questions", out raw) ? raw as object[] : null;
+            var result = new List<string>();
+            if (questions != null) foreach (object question in questions) result.Add(Text(question as Dictionary<string, object>, "title"));
+            return result;
         }
 
         private static bool AsyncRequestFailed(Dictionary<string, object> payload, JavaScriptSerializer json)
@@ -347,7 +382,7 @@ namespace Cxt1024Bridge
             return replies;
         }
 
-        private static Record Parse(byte[] buffer, int start, int count, long offset, JavaScriptSerializer json)
+        private static Record Parse(byte[] buffer, int start, int count, long offset, JavaScriptSerializer json, bool includeQuestions)
         {
             if (count == 0) return null;
             try
@@ -356,7 +391,8 @@ namespace Cxt1024Bridge
                 string outer = Text(obj, "type");
                 var payload = Object(obj, "payload");
                 if ((outer != "event_msg" && outer != "response_item") || payload == null) return null;
-                // Retain status metadata only, not prompts, answers or tool output.
+                // Question titles are retained only for the explicit question manager.
+                // Never retain user prompts, answers or tool output.
                 var slim = new Dictionary<string, object>();
                 foreach (string key in new[] { "type", "turn_id", "turnId", "reason", "role", "phase", "channel", "name", "call_id", "delivery" })
                 {
@@ -372,7 +408,10 @@ namespace Cxt1024Bridge
                 string kind = Text(payload, "type");
                 if (outer == "response_item" && (kind == "function_call" || kind == "custom_tool_call") &&
                     (Text(payload, "name") == "request_user_input_async" || Text(payload, "name").EndsWith(".request_user_input_async", StringComparison.Ordinal)))
+                {
                     slim["question_count"] = QuestionCount(payload, json);
+                    if (includeQuestions) slim["question_titles"] = QuestionTitles(payload, json);
+                }
                 if (outer == "response_item" && (kind == "function_call_output" || kind == "custom_tool_call_output"))
                     slim["async_request_failed"] = AsyncRequestFailed(payload, json);
                 object content;
@@ -390,7 +429,7 @@ namespace Cxt1024Bridge
             catch (InvalidOperationException) { return null; }
         }
 
-        private static IEnumerable<Record> ReadBackwards(Stream stream, JavaScriptSerializer json)
+        private static IEnumerable<Record> ReadBackwards(Stream stream, JavaScriptSerializer json, bool includeQuestions)
         {
             long position = stream.Length;
             byte[] suffix = new byte[0];
@@ -414,13 +453,13 @@ namespace Cxt1024Bridge
                 for (int i = bytes.Length - 1; i >= 0; i--)
                 {
                     if (bytes[i] != (byte)'\n') continue;
-                    Record record = Parse(bytes, i + 1, end - i - 1, start + i + 1, json);
+                    Record record = Parse(bytes, i + 1, end - i - 1, start + i + 1, json, includeQuestions);
                     if (record != null) yield return record;
                     end = i;
                 }
                 if (start == 0)
                 {
-                    Record record = Parse(bytes, 0, end, 0, json);
+                    Record record = Parse(bytes, 0, end, 0, json, includeQuestions);
                     if (record != null) yield return record;
                 }
                 else

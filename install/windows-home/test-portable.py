@@ -146,8 +146,8 @@ def main():
         files += ["WindowsControllerEngine.cs", "WindowsControllerState.cs", "WindowsControllerTests.cs"]
         calls.append("WindowsControllerTests.Run();")
     if args.suite in ("all", "status"):
-        files += ["CodexRolloutState.cs", "ChatGptTaskStatus.cs", "CodexTaskStateTests.cs"]
-        calls.append("CodexTaskStateTests.Run();")
+        files += ["CodexRolloutState.cs", "ChatGptTaskStatus.cs", "CodexTaskStateTests.cs", "CodexQuestionIgnore.cs", "CodexQuestionIgnoreTests.cs"]
+        calls.append("CodexTaskStateTests.Run(); CodexQuestionIgnoreTests.Run();")
     source_root = ROOT / "src" / "Cxt1024Bridge"
     for name in files:
         if not (source_root / name).is_file():

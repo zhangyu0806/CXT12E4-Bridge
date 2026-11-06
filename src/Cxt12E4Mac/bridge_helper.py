@@ -95,9 +95,9 @@ def question_replies(content):
     return replies
 
 
-def rollout_snapshot(path,boot_time=None):
+def rollout_snapshot(path,boot_time=None,ignored_questions=(),include_questions=False):
     """Interpret structured events from the latest turn; item completion is not turn completion."""
-    result={'state':1,'revision':'','turnId':'','terminal':False,'legacyRevisions':[]}
+    result={'state':1,'revision':'','turnId':'','terminal':False,'legacyRevisions':[],'questions':[]}
     try:
         records=[];local=False;started=None;activity=None;unknown_time=False
         with open(path,'rb') as f:
@@ -113,7 +113,8 @@ def rollout_snapshot(path,boot_time=None):
                 if not isinstance(obj,dict):continue
                 p=obj.get('payload',{})
                 if not isinstance(p,dict):continue
-                # Do not retain tool output, prompts or answer text in the status adapter.
+                # Retain question titles only for the explicit question manager.
+                # Never retain tool output, user prompts or answer text.
                 item=p.get('item',{})
                 payload={k:p[k] for k in ('type','reason','role','phase','channel','name','call_id','delivery') if k in p}
                 payload['turn_id']=turn_id(p) or turn_id(obj)
@@ -124,6 +125,8 @@ def rollout_snapshot(path,boot_time=None):
                     arguments=json_value(p.get('arguments',p.get('input')))
                     questions=arguments.get('questions') if isinstance(arguments,dict) else None
                     payload['question_count']=len(questions) if isinstance(questions,list) and questions else 1
+                    if include_questions:
+                        payload['question_titles']=[q.get('title','') if isinstance(q,dict) else '' for q in questions] if isinstance(questions,list) else []
                 if p.get('type') in ('function_call_output','custom_tool_call_output'):
                     output=json_value(p.get('output'))
                     payload['question_rejected']=isinstance(output,dict) and (output.get('accepted') is False or output.get('isError') is True or has_error(output.get('error')))
@@ -133,13 +136,13 @@ def rollout_snapshot(path,boot_time=None):
                     payload['question_replies']=question_replies(item.get('content'))
                 records.append((offset,{'type':obj.get('type'),'timestamp':obj.get('timestamp'),'payload':payload}))
                 if obj.get('type')=='event_msg' and p.get('type')=='task_started':break
-        pending=set();async_pending={}
+        pending=set();async_pending={};titles={}
         for offset,obj in reversed(records):
             p=obj['payload'];kind=p.get('type');outer=obj.get('type')
             if outer=='event_msg' and kind=='task_started':
                 result.update(state=2,revision='',turnId=p.get('turn_id',''),terminal=False,legacyRevisions=[])
                 started=event_time(obj.get('timestamp'));activity=started;unknown_time=started is None
-                pending.clear();async_pending.clear();continue
+                pending.clear();async_pending.clear();titles.clear();continue
             turn=p.get('turn_id','')
             if turn and result['turnId'] and turn!=result['turnId']:continue
             if outer=='response_item' or (outer=='event_msg' and kind!='thread_settings_applied'):
@@ -177,24 +180,76 @@ def rollout_snapshot(path,boot_time=None):
                 if kind in ('function_call','custom_tool_call') and name in ('request_user_input','request_plugin_install'):
                     if p.get('call_id'):pending.add(p['call_id'])
                 elif kind in ('function_call','custom_tool_call') and name=='request_user_input_async':
-                    if p.get('call_id'):async_pending[p['call_id']]=set(range(p.get('question_count',1)))
+                    if p.get('call_id'):
+                        async_pending[p['call_id']]=set(range(p.get('question_count',1)))
+                        titles[p['call_id']]=p.get('question_titles',[])
         completed=result['state']==3
-        if pending or async_pending:
+        ignored={tuple(q) for q in ignored_questions if valid_question_identity(q)}
+        remaining=0
+        for call,indices in async_pending.items():
+            for index in sorted(indices):
+                identity=(result['turnId'],call,index)
+                suppressed=bool(result['turnId']) and identity in ignored
+                if not suppressed:remaining+=1
+                if include_questions and result['turnId']:
+                    labels=titles.get(call,[])
+                    title=labels[index] if index<len(labels) and isinstance(labels[index],str) else ''
+                    result['questions'].append({'turnId':result['turnId'],'callId':call,'index':index,
+                                               'title':title or f'提问 {index+1}','ignored':suppressed})
+        if pending or remaining:
             result.update(state=4,revision='',legacyRevisions=[])
         # A local process cannot survive an OS reboot. Settings-only writes do not
         # restart its turn. Never use elapsed silence to infer success or failure.
         if local and not completed and result['state'] in (2,4) and started is not None and not unknown_time:
             boot=system_boot_time() if boot_time is None else boot_time
             if boot is not None and started<boot and activity<boot:
-                result.update(state=1,revision='',terminal=True)
+                result.update(state=1,revision='',terminal=True,questions=[])
     except OSError:pass
     return result
 
 
-def rollout_state(path,legacy_revisions=None):
-    snapshot=rollout_snapshot(path)
+def rollout_state(path,legacy_revisions=None,ignored_questions=()):
+    snapshot=rollout_snapshot(path,ignored_questions=ignored_questions)
     if legacy_revisions is not None:legacy_revisions.extend(snapshot['legacyRevisions'])
     return snapshot['state'],snapshot['revision']
+
+
+def valid_question_identity(value):
+    return (isinstance(value,(list,tuple)) and len(value)==3 and
+            all(isinstance(x,str) and x for x in value[:2]) and type(value[2]) is int and value[2]>=0)
+
+
+def ignored_questions(cache,thread):
+    stored=cache.get('ignoredQuestions',{})
+    values=stored.get(thread,[]) if isinstance(stored,dict) else []
+    return [q for q in values if valid_question_identity(q)] if isinstance(values,list) else []
+
+
+def question_list(cache):
+    """Read fresh questions for fixed task identities; titles are returned, never cached."""
+    assigned=task_slot_ids(cache);rows={r['id']:r for r in catalog(assigned)};result=[]
+    for slot,thread in enumerate(assigned):
+        row=rows.get(thread)
+        if not row:continue
+        snapshot=rollout_snapshot(row['rollout_path'],ignored_questions=ignored_questions(cache,thread),include_questions=True)
+        for question in snapshot['questions']:
+            result.append({**question,'threadId':thread,'taskTitle':row.get('title','') or '未命名任务','key':[1,2,3,5,6,7][slot]})
+    return result
+
+
+def set_question_ignored(cache,thread,turn,call,index,ignore):
+    identity=[turn,call,index]
+    if not valid_question_identity(identity):raise ValueError('无效的提问身份')
+    # Re-read before applying a frozen selection. Never apply by title or slot.
+    current=next((q for q in question_list(cache) if q['threadId']==thread and
+                  [q['turnId'],q['callId'],q['index']]==identity),None)
+    if current is None:raise RuntimeError('提问已结束或已更新，请刷新后重试')
+    values=[q for q in ignored_questions(cache,thread) if q[0]==turn and list(q)!=identity]
+    if ignore:values.append(identity)
+    stored=cache.get('ignoredQuestions',{})
+    if not isinstance(stored,dict):stored={}
+    cache['ignoredQuestions']={**stored,thread:values}
+    return {'ok':True}
 
 
 def task_acknowledgements(cache,thread_id):
@@ -358,7 +413,7 @@ def status(cache):
             # id excludes this slot from the chooser and prevents navigation.
             tasks.append({'state':0,'revision':''});continue
         legacy=[]
-        state,revision=rollout_state(r['rollout_path'],legacy)
+        state,revision=rollout_state(r['rollout_path'],legacy,ignored_questions(cache,r['id']))
         acknowledged=task_acknowledgements(cache,r['id'])
         if state==3 and revision and (revision in acknowledged or any(old in acknowledged for old in legacy)):
             acknowledge_task(cache,r['id'],revision)
@@ -493,7 +548,11 @@ def main():
         except (OSError,ValueError):cache={}
         command=sys.argv[1] if len(sys.argv)>1 else 'status'
         if command=='status':result=status(cache)
-        elif command=='reset':cache={'terminalSlots':cache.get('terminalSlots',{}),'taskAck':cache.get('taskAck',{}),'taskSlots':task_slot_ids(cache)};result={'ok':True}
+        elif command=='reset':cache={'terminalSlots':cache.get('terminalSlots',{}),'taskAck':cache.get('taskAck',{}),'taskSlots':task_slot_ids(cache),'ignoredQuestions':cache.get('ignoredQuestions',{})};result={'ok':True}
+        elif command=='questions':result={'questions':question_list(cache)}
+        elif command=='question-ignore':
+            if len(sys.argv)!=7 or sys.argv[6] not in ('ignore','restore'):raise ValueError('无效的提问操作')
+            result=set_question_ignored(cache,sys.argv[2],sys.argv[3],sys.argv[4],int(sys.argv[5]),sys.argv[6]=='ignore')
         elif command=='ack-task':
             result={'ok':True,'changed':acknowledge_task(cache,sys.argv[2],sys.argv[3])}
         elif command=='tmux':result=tmux_action(sys.argv[2],cache,allow_recent='--allow-recent' in sys.argv[3:])

@@ -38,6 +38,7 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
     lazy var controller=ControllerCoordinator(profiles:profiles)
     lazy var settings=ProfileSettings(store:profiles)
     let chooser=ControllerChooser()
+    let questions=QuestionManager()
     let controllerStatusLine=NSMenuItem(title:"Xbox：未连接",action:nil,keyEquivalent:"")
     var panelReturnApp:NSRunningApplication?
     let work=DispatchQueue(label:"cxt.actions",qos:.userInitiated)
@@ -67,6 +68,7 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
         item.button?.imageScaling = .scaleNone
         item.button?.image=LayerBadge.images[0]
         rebuildMenu()
+        questions.onClose={ [weak self] in self?.controller.setPanelVisible(false);self?.restorePanelApp() }
         actions.notify={ [weak self] message in DispatchQueue.main.async {self?.noticeLine.title=message;self?.noticeUntil=Date(timeIntervalSinceNow:8)} }
         actions.taskSnapshot={ [weak self] in guard let self=self else{return []};self.dataLock.lock();defer{self.dataLock.unlock()};return self.tasks }
         actions.terminalBundle={ [weak self] in guard let self=self else{return "com.mitchellh.ghostty"};self.dataLock.lock();defer{self.dataLock.unlock()};return self.lastTerminal }
@@ -96,6 +98,7 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
                 // A deliberate app switch dismisses the selector without
                 // returning focus to the app that originally opened it.
                 self.chooser.close(restoreFocus:false)
+                if self.questions.isVisible {self.questions.close()}
             }
             self.refreshContext(force:true)
         }
@@ -213,7 +216,7 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
         let auto=NSMenuItem(title:"自动切层",action:#selector(automatic(_:)),keyEquivalent:"");auto.target=self;menu.addItem(auto)
         for n in 1...8 {let i=n==8 ? 0:n;let m=NSMenuItem(title:"L\(n) \(layerNames[i])",action:#selector(selectLayer(_:)),keyEquivalent:"");m.tag=i;m.target=self;menu.addItem(m)}
         menu.addItem(.separator())
-        for (title,selector) in [("分层按键设置…",#selector(openSettings(_:))),("任务 / 会话选择…",#selector(openChooser(_:))),("暂停 / 恢复 Xbox",#selector(toggleController(_:))),("在当前应用暂停 / 恢复 Xbox",#selector(toggleApplicationPause(_:))),("检查权限",#selector(permissions(_:))),("打开日志",#selector(openLog(_:))),("保存界面诊断",#selector(diagnostics(_:))),("使用说明",#selector(openGuide(_:))),("快捷键总表",#selector(openShortcutGuide(_:))),("离线说明",#selector(openOfflineGuide(_:)))] {let m=NSMenuItem(title:title,action:selector,keyEquivalent:"");m.target=self;menu.addItem(m)}
+        for (title,selector) in [("分层按键设置…",#selector(openSettings(_:))),("任务 / 会话选择…",#selector(openChooser(_:))),("忽略此提问…",#selector(openQuestions(_:))),("暂停 / 恢复 Xbox",#selector(toggleController(_:))),("在当前应用暂停 / 恢复 Xbox",#selector(toggleApplicationPause(_:))),("检查权限",#selector(permissions(_:))),("打开日志",#selector(openLog(_:))),("保存界面诊断",#selector(diagnostics(_:))),("使用说明",#selector(openGuide(_:))),("快捷键总表",#selector(openShortcutGuide(_:))),("离线说明",#selector(openOfflineGuide(_:)))] {let m=NSMenuItem(title:title,action:selector,keyEquivalent:"");m.target=self;menu.addItem(m)}
         let quit=NSMenuItem(title:"退出 Bridge",action:#selector(quitBridge(_:)),keyEquivalent:"q");quit.target=self;menu.addItem(quit);item.menu=menu
     }
     @objc func automatic(_ sender:Any?) {manual=nil;generation+=1;decoder.cancel();refreshContext();controller.contextChanged()}
@@ -259,11 +262,19 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
         attempt()
     }
     func showSettings(device:String) {
+        if questions.isVisible {questions.show();return}
         chooser.close(restoreFocus:false)
         rememberPanelApp();decoder.cancel();controller.cancelAll();settings.show(device:device,layer:contexts.get().layer)
     }
     @objc func openSettings(_ sender:Any?) {showSettings(device:"xbox")}
+    @objc func openQuestions(_ sender:Any?) {
+        if settings.isVisible {settings.activate();return}
+        chooser.close(restoreFocus:false)
+        rememberPanelApp();decoder.cancel();controller.cancelAll();controller.setPanelVisible(true)
+        questions.show()
+    }
     @objc func openChooser(_ sender:Any?) {
+        if questions.isVisible {questions.show();return}
         if chooser.isVisible {chooser.close();return}
         if settings.isVisible {settings.activate();return}
         rememberPanelApp();decoder.cancel();controller.setPanelVisible(true)

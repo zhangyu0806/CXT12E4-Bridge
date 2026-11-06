@@ -13,6 +13,7 @@ namespace Cxt1024Bridge
         private WindowsProfileSettings _profileSettings;
         private IntPtr _settingsReturnWindow;
         private WindowsControllerChooser _chooser;
+        private WindowsQuestionManager _questionManager;
         private ToolStripMenuItem _controllerStatus;
         private long _controllerGeneration = -1;
         private int _controllerLayer = -1;
@@ -35,6 +36,7 @@ namespace Cxt1024Bridge
             _controller.OnNotice = delegate(string message) { ShowBalloon("Xbox Bridge", message, ToolTipIcon.Info); };
             _controller.OnPanelInput = delegate(string button, bool down)
             {
+                if (_questionManager != null && !_questionManager.IsDisposed && _questionManager.ContainsFocus) return true;
                 if (_profileSettings != null && !_profileSettings.IsDisposed && _profileSettings.ContainsFocus && button == "menu") return true;
                 return _chooser != null && !_chooser.IsDisposed && _chooser.ContainsFocus && _chooser.HandleButton(button, down);
             };
@@ -51,6 +53,8 @@ namespace Cxt1024Bridge
             settings.Click += delegate { ShowProfileSettings("xbox"); };
             var chooser = new ToolStripMenuItem("任务 / 会话选择…");
             chooser.Click += delegate { ShowControllerChooser(); };
+            var questions = new ToolStripMenuItem("忽略此提问…");
+            questions.Click += delegate { ShowQuestionManager(); };
             var pause = new ToolStripMenuItem("暂停 / 恢复 Xbox"); pause.Click += delegate { _controller.Toggle(); };
             var appPause = new ToolStripMenuItem("在当前应用暂停 / 恢复 Xbox"); appPause.Click += delegate { ToggleProcessPause(); };
             var guide = new ToolStripMenuItem("使用说明（Windows / Mac）");
@@ -58,7 +62,7 @@ namespace Cxt1024Bridge
             var shortcuts = new ToolStripMenuItem("快捷键总表");
             shortcuts.Click += delegate { Process.Start(new ProcessStartInfo("https://cxt12e4.11166666.xyz/shortcuts.html") { UseShellExecute = true }); };
             int position = _menu.Items.Count - 2;
-            foreach (ToolStripItem item in new ToolStripItem[] { settings, chooser, pause, appPause, guide, shortcuts }) _menu.Items.Insert(position++, item);
+            foreach (ToolStripItem item in new ToolStripItem[] { settings, chooser, questions, pause, appPause, guide, shortcuts }) _menu.Items.Insert(position++, item);
             if (!string.IsNullOrEmpty(_profiles.LoadError)) ShowBalloon("配置未加载", _profiles.LoadError, ToolTipIcon.Warning);
             RefreshControllerContext();
         }
@@ -79,6 +83,7 @@ namespace Cxt1024Bridge
             if (f.ProcessId == _ownProcessId) return;
             _layers.ObserveForeground(f);
             if (_chooser != null && !_chooser.IsDisposed && _chooser.Visible && !_chooser.ContainsFocus) _chooser.Close();
+            if (_questionManager != null && !_questionManager.IsDisposed && _questionManager.Visible && !_questionManager.ContainsFocus) _questionManager.Close();
             RefreshControllerContext();
         }
         private void RefreshControllerContext()
@@ -119,9 +124,27 @@ namespace Cxt1024Bridge
             try { _profiles.Replace(next); }
             catch (Exception ex) { ShowBalloon("未保存暂停设置", ex.Message, ToolTipIcon.Error); }
         }
+        private void ShowQuestionManager()
+        {
+            if (_exiting) return;
+            if (_questionManager != null && !_questionManager.IsDisposed) { _questionManager.Activate(); return; }
+            if (_profileSettings != null && !_profileSettings.IsDisposed) { _profileSettings.Activate(); return; }
+            if (_chooser != null && !_chooser.IsDisposed) _chooser.Close();
+            IntPtr returnWindow = CaptureControllerContext().Window;
+            _triggers.CancelBusinessInputs(); _layers.InvalidateInputContext(); _controller.CancelAll();
+            _questionManager = new WindowsQuestionManager(new CodexQuestionService(CodexQuestionIgnoreStore.Default, () => _taskSlots.Snapshot()));
+            _controller.SetPanelVisible(true);
+            _questionManager.FormClosed += delegate
+            {
+                _questionManager = null;
+                if (!_exiting) { _layers.InvalidateInputContext(); _controller.SetPanelVisible(false); RestoreDeviceWindow(returnWindow); }
+            };
+            _questionManager.Show();
+        }
         private void ShowProfileSettings(string device)
         {
             if (_exiting) return;
+            if (_questionManager != null && !_questionManager.IsDisposed) { _questionManager.Activate(); return; }
             if (_chooser != null && !_chooser.IsDisposed) _chooser.Close();
             if (_profileSettings != null && !_profileSettings.IsDisposed) { _settingsReturnWindow = CaptureControllerContext().Window; _profileSettings.Activate(); return; }
             IntPtr returnWindow = CaptureControllerContext().Window;
@@ -145,6 +168,7 @@ namespace Cxt1024Bridge
         private void ShowControllerChooser()
         {
             if (_exiting) return;
+            if (_questionManager != null && !_questionManager.IsDisposed) { _questionManager.Activate(); return; }
             if (_chooser != null && !_chooser.IsDisposed) { _chooser.Close(); return; }
             if (_profileSettings != null && !_profileSettings.IsDisposed) { _settingsReturnWindow = CaptureControllerContext().Window; _profileSettings.Activate(); return; }
             IntPtr returnWindow = CaptureControllerContext().Window;
