@@ -67,12 +67,13 @@ final class ControllerChooser: NSObject, NSTableViewDataSource, NSTableViewDeleg
         let record = records[selectedGroup][row], state = record["state"] as? Int ?? 1
         let cell = NSTableCellView()
         let dot = NSView(); dot.wantsLayer = true; dot.layer?.cornerRadius = 5
-        dot.layer?.backgroundColor = Self.stateStyle(state).0.cgColor
+        let style = Self.stateStyle(state, isTask: selectedGroup == 0)
+        dot.layer?.backgroundColor = style.0.cgColor
         dot.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: (record[selectedGroup == 0 ? "title" : "name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? (selectedGroup == 0 ? "未命名任务" : "未命名会话"))
         title.font = .systemFont(ofSize: 14, weight: .medium); title.lineBreakMode = .byTruncatingTail
         title.translatesAutoresizingMaskIntoConstraints = false
-        let detail = NSTextField(labelWithString: Self.stateStyle(state).1)
+        let detail = NSTextField(labelWithString: style.1)
         detail.font = .systemFont(ofSize: 11); detail.textColor = .secondaryLabelColor
         detail.translatesAutoresizingMaskIntoConstraints = false
         cell.addSubview(dot); cell.addSubview(title); cell.addSubview(detail)
@@ -87,13 +88,13 @@ final class ControllerChooser: NSObject, NSTableViewDataSource, NSTableViewDeleg
         return cell
     }
 
-    private static func stateStyle(_ state: Int) -> (NSColor, String) {
+    private static func stateStyle(_ state: Int, isTask: Bool) -> (NSColor, String) {
         switch state {
         case 2: return (.systemBlue, "运行中")
-        case 3: return (.systemGreen, "新完成")
+        case 3: return (.systemGreen, isTask ? "已完成 / 未查看" : "新完成")
         case 4: return (.systemYellow, "等待输入")
         case 5: return (.systemRed, "出错")
-        default: return (.lightGray, "空闲 / 已查看")
+        default: return (.lightGray, isTask ? "空闲 / 已查看 / 已停止" : "空闲 / 已查看")
         }
     }
 

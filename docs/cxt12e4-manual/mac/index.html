@@ -336,7 +336,8 @@
         <div class="status" style="--status:#ffb000"><span class="status-light"></span><strong>琥珀黄 · 等待输入</strong><small>正在等你的回答或操作；边工作边提问也亮黄。</small></div>
         <div class="status" style="--status:#ff0000"><span class="status-light"></span><strong>红色 · 出错</strong><small>任务明确失败；手动停止不会亮红灯。</small></div>
       </div>
-      <p>Mac 与 Windows 使用同一规则：通过 12E4 任务键或 Xbox 选择面板成功打开已完成任务后转白；查看确认只对应当前轮次并持久保存，重启 Bridge 后仍为白色。尚未查看的完成保持绿色；下一轮运行转蓝、完成后重新亮绿。手动停止转白，不算错误。等待你回答时亮黄，包括边工作边提问；对应问题全部回答后，若仍在运行则转蓝，最终完成转绿。tmux 会话继续用“新完成亮绿、长按切入确认后转白”的规则。</p>
+      <p>六个 Codex 任务键首次按最近任务分配，此后回复问题、继续运行或切换已有任务都不会让它换键。新进入的任务只替换最久未活动的一个槽；归档或删除任务只释放原槽，其他任务不会向前挤位。Mac 会保存这组对应关系，重启 Bridge 后仍保留。按键打开的任务、手柄选择项与灯光使用同一份任务身份。</p>
+      <p>Mac 与 Windows 使用同一规则：通过 12E4 任务键或 Xbox 选择面板成功打开已完成任务后转白；查看确认只对应当前轮次并持久保存，重启 Bridge 后仍为白色。尚未查看的完成保持绿色；下一轮运行转蓝、完成后重新亮绿。手动停止转白，不算错误。等待你回答时亮黄，包括边工作边提问；对应问题全部回答后，若仍在运行则转蓝，最终完成转绿。本轮回复结束不等于提问已解决：只要本轮仍有未回答的提问，就保持黄色，点开也不会提前确认完成；对应问题答完后，继续运行转蓝，确实完成才转绿。手动停止仍转白，新一轮按新状态判断。tmux 会话继续用“新完成亮绿、长按切入确认后转白”的规则。</p>
     </section>
 
     <section class="section keyboard-only">
@@ -353,7 +354,7 @@
 <details><summary>验证范围与日志</summary><div class="detail-body"><ul><li>本地 Codex 任务若在电脑关机或重启前仍记为运行、且没有结束事件，Bridge 会根据本机启动时间将这次中断恢复为白色；已有完成记录按是否已查看保持绿色或白色。Bridge 不凭运行时长判定完成。同一次开机期间若缺少结束记录，仍无法可靠确认任务是否已结束。</li><li>以下记录针对维护者当时的设备、应用版本与配置。新安装仍需按本页清单逐项确认；自动检查与实机操作是不同的验证。</li><li>已实机确认侧栏、K4 滚动、键12+2 启动 Ghostty、长按任务键返回 Codex，以及 tmux 白灯和长按切换。</li><li>2026-10-26 已实机确认 K2 双向切换任务且不再切歌；模型菜单读取已验证。手柄 LB / RB 共用相同切任务操作，手柄实机效果仍需单独确认。模型控制精确识别 6.1 Sol、分离强度与权限；旧版自动确认的验证不代表当前权限行为已验收。Xbox 的 X 拖拽、Y 右键、B 关闭菜单及 Menu → A 选择确认已于 2026-10-20 实机通过；本次新增的 Codex R3 Tab、其他分层操作与手感仍需逐项确认。</li><li>截至 2026-10-09，Mac tmux 适配已通过 78 项自动检查，包括快照恢复后的 Agent 重启及裸 tmux 连接行为。配置热加载检查确认已有面板及其进程保留。普通键盘的按键协议与实机范围见 <a href="tmux.html">tmux 验证说明</a>。</li><li>运行日志与状态位于 <code>~/Library/Application Support/CXT12E4Bridge/</code>。本次没有改键盘固件，接回 Windows 可继续使用原 Bridge。</li></ul></div></details></section>
     <footer>
       <span>CXT 12E4 + Xbox · macOS Bridge 配置说明</span>
-      <span>更新：2026-10-26 · 修订：20261026-k2-navigation · macOS · 配置源：Mac Bridge / Profiles.swift / winsettings</span>
+      <span>更新：2026-11-06 · 修订：20261106-waiting-slots · macOS · 配置源：Mac Bridge / Profiles.swift / winsettings</span>
     </footer>
   </div>
 

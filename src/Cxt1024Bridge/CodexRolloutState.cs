@@ -139,9 +139,10 @@ namespace Cxt1024Bridge
                 {
                     complete = !authoritativeEnd && kind == "message" && Text(payload, "role") == "assistant" &&
                         (Text(payload, "phase") == "final_answer" || Text(payload, "channel") == "final") && !IsQuestionDelivery(payload);
+                    string call = Text(payload, "call_id");
                     if (result.State == AiTaskState.Thinking || result.State == AiTaskState.WaitingForInput)
                     {
-                        string call = Text(payload, "call_id"), name = Text(payload, "name");
+                        string name = Text(payload, "name");
                         int dot = name.LastIndexOf('.');
                         if (dot >= 0) name = name.Substring(dot + 1);
                         if ((kind == "function_call" || kind == "custom_tool_call") && call.Length != 0 &&
@@ -152,12 +153,13 @@ namespace Cxt1024Bridge
                             for (int i = 0; i < (int)payload["question_count"]; i++) questions.Add(i);
                             asyncPending[call] = questions;
                         }
-                        else if (kind == "function_call_output" || kind == "custom_tool_call_output")
-                        {
-                            pending.Remove(call);
-                            // accepted:true means the question is displayed, not answered.
-                            if ((bool)payload["async_request_failed"]) asyncPending.Remove(call);
-                        }
+                    }
+                    if (kind == "function_call_output" || kind == "custom_tool_call_output")
+                    {
+                        pending.Remove(call);
+                        // accepted:true means the question is displayed, not answered.
+                        // Explicit rejection can arrive after the turn has ended.
+                        if ((bool)payload["async_request_failed"]) asyncPending.Remove(call);
                     }
                 }
                 object replyValue;
@@ -179,19 +181,24 @@ namespace Cxt1024Bridge
                     result.CompletionRevision = completedTurn.Length == 0
                         ? path + ":" + record.Offset.ToString(CultureInfo.InvariantCulture)
                         : path + ":turn:" + completedTurn;
-                    pending.Clear();
-                    asyncPending.Clear();
+                    // A successful turn can end while its async question still
+                    // awaits the user. Keep question identities until answered,
+                    // explicitly rejected, interrupted, or superseded by a new turn.
                 }
             }
-            if ((result.State == AiTaskState.Thinking || result.State == AiTaskState.WaitingForInput) &&
+            bool successfulCompletion = result.State == AiTaskState.Completed;
+            if ((result.State == AiTaskState.Thinking || result.State == AiTaskState.WaitingForInput || successfulCompletion) &&
                 (pending.Count != 0 || asyncPending.Count != 0))
             {
                 result.State = AiTaskState.WaitingForInput;
                 result.Evidence = "pending-user-request";
+                // Opening the waiting task must not pre-acknowledge a completion
+                // that becomes visible only after its remaining questions resolve.
+                result.CompletionRevision = string.Empty;
             }
             // An OS reboot ended this local process. UI settings written later
             // do not resume it. Silence within one boot never implies completion.
-            if (local && bootTime.HasValue && !unknownTime && started.HasValue && activity.HasValue &&
+            if (!successfulCompletion && local && bootTime.HasValue && !unknownTime && started.HasValue && activity.HasValue &&
                 started.Value < bootTime.Value && activity.Value < bootTime.Value &&
                 (result.State == AiTaskState.Thinking || result.State == AiTaskState.WaitingForInput))
             {

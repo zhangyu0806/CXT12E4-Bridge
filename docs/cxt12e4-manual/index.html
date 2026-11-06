@@ -356,7 +356,7 @@
         <div class="status" style="--status:#ffb000"><span class="status-light"></span><strong>琥珀黄 · 等待输入</strong><small>正在等你的回答或操作；边工作边提问也亮黄。</small></div>
         <div class="status" style="--status:#ff0000"><span class="status-light"></span><strong>红色 · 出错</strong><small>任务明确失败；手动停止不会亮红灯。</small></div>
       </div>
-      <p>Mac 与 Windows 使用同一规则：通过 12E4 任务键或 Xbox 选择面板成功打开已完成任务后转白；查看确认只对应当前轮次并持久保存，重启 Bridge 后仍为白色。尚未查看的完成保持绿色；下一轮运行转蓝、完成后重新亮绿。手动停止转白，不算错误。等待你回答时亮黄，包括边工作边提问；对应问题全部回答后，若仍在运行则转蓝，最终完成转绿。tmux 会话继续用“新完成亮绿、长按切入确认后转白”的规则。</p>
+      <p>Mac 与 Windows 使用同一规则：通过 12E4 任务键或 Xbox 选择面板成功打开已完成任务后转白；查看确认只对应当前轮次并持久保存，重启 Bridge 后仍为白色。尚未查看的完成保持绿色；下一轮运行转蓝、完成后重新亮绿。手动停止转白，不算错误。等待你回答时亮黄，包括边工作边提问；对应问题全部回答后，若仍在运行则转蓝，最终完成转绿。本轮回复结束不等于提问已解决：只要本轮仍有未回答的提问，就保持黄色，点开也不会提前确认完成；对应问题答完后，继续运行转蓝，确实完成才转绿。手动停止仍转白，新一轮按新状态判断。tmux 会话继续用“新完成亮绿、长按切入确认后转白”的规则。</p>
     </section>
 
     <section class="section keyboard-only">
@@ -422,7 +422,7 @@
 
     <footer>
       <span>CXT 12E4 + Xbox · Windows Bridge 配置说明</span>
-      <span>更新：2026-11-06 · 修订：20261106-side-panel · 配置源：WindowsLayerProfiles / ActionEngine / QMK firmware</span>
+      <span>更新：2026-11-06 · 修订：20261106-waiting-slots · 配置源：WindowsLayerProfiles / ActionEngine / QMK firmware</span>
     </footer>
   </div>
 

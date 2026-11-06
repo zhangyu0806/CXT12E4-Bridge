@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 """Local-only status and tmux adapter. Never writes Codex databases or rollout logs."""
 import contextlib
+from datetime import datetime
 import fcntl
+from functools import lru_cache
 import json
 import os
 from pathlib import Path
@@ -16,7 +18,6 @@ ROOT = Path(os.environ.get('CXT_STATE_DIR', str(Path.home() / 'Library/Applicati
 CODEX = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex')))
 TMUX = os.environ.get('CXT_TMUX_PATH') or next((str(p) for p in [Path.home()/'.local/bin/tmux',Path('/opt/homebrew/bin/tmux'),Path('/usr/local/bin/tmux')] if p.exists()), 'tmux')
 STATE_CODES = {'idle':1,'thinking':2,'busy':2,'running':2,'completed':3,'waiting':4,'permission':4,'error':5}
-MARKER = re.compile(rb'"type"\s*:\s*"event_msg"\s*,\s*"payload"\s*:\s*\{\s*"type"\s*:\s*"(task_started|task_complete|turn_aborted)"')
 
 
 def atomic_json(path, value):
@@ -35,50 +36,243 @@ def call_tmux(*args):
     return p.stdout.strip()
 
 
-def rollout_state(path):
-    """Find a complete lifecycle boundary backwards, then interpret only that turn."""
+def reverse_lines(f):
+    """Yield complete JSONL records with byte offsets, without loading a whole log."""
+    position=f.seek(0,2);carry=b''
+    while position:
+        size=min(65536,position);position-=size;f.seek(position)
+        data=f.read(size)+carry;parts=data.split(b'\n')
+        carry=parts.pop(0) if position else b''
+        offset=position+len(data)
+        for line in reversed(parts):
+            offset-=len(line)
+            if line:yield offset,line
+            offset-=1
+
+
+@lru_cache(maxsize=1)
+def system_boot_time():
     try:
+        output=subprocess.run(['/usr/sbin/sysctl','-n','kern.boottime'],capture_output=True,text=True,timeout=1,check=True).stdout
+        match=re.search(r'\bsec\s*=\s*(\d+)',output)
+        return int(match[1]) if match else None
+    except (OSError,subprocess.SubprocessError):return None
+
+
+def event_time(value):
+    if not isinstance(value,str):return None
+    try:return datetime.fromisoformat(value.replace('Z','+00:00')).timestamp() if value.endswith('Z') or re.search(r'[+-]\d\d:\d\d$',value) else None
+    except (ValueError,OverflowError):return None
+
+
+def has_error(value):
+    return bool(value.strip()) if isinstance(value,str) else bool(value)
+
+
+def turn_id(obj):
+    return next((obj[k] for k in ('turn_id','turnId') if isinstance(obj.get(k),str) and obj[k]),'')
+
+
+def json_value(value):
+    if not isinstance(value,str):return value
+    try:return json.loads(value)
+    except ValueError:return None
+
+
+def question_replies(content):
+    """Only a structured user answer can resolve an asynchronous question."""
+    texts=[content] if isinstance(content,str) else [c.get('text','') for c in content if isinstance(c,dict) and c.get('type') in ('text','input_text')] if isinstance(content,list) else []
+    replies=[]
+    for text in texts:
+        if not isinstance(text,str):continue
+        for match in re.finditer(r'<send_user_message_question_reply>\s*(.*?)\s*</send_user_message_question_reply>',text,re.S):
+            answers=json_value(match[1])
+            if not isinstance(answers,list):continue
+            for answer in answers:
+                identity=json_value(answer.get('questionItemId')) if isinstance(answer,dict) else None
+                if isinstance(identity,list) and len(identity)==3 and identity[0]=='request_user_input_async' and isinstance(identity[1],str) and type(identity[2]) is int:
+                    replies.append((identity[1],identity[2]))
+    return replies
+
+
+def rollout_snapshot(path,boot_time=None):
+    """Interpret structured events from the latest turn; item completion is not turn completion."""
+    result={'state':1,'revision':'','turnId':'','terminal':False,'legacyRevisions':[]}
+    try:
+        records=[];local=False;started=None;activity=None;unknown_time=False
         with open(path,'rb') as f:
-            end=f.seek(0,2);start=end;buf=b'';match=None
-            while start>0:
-                size=min(65536,start);start-=size;f.seek(start);buf=f.read(size)+buf
-                hits=list(MARKER.finditer(buf))
-                if hits:match=hits[-1];break
-            if match is None:return 1,''
-            line_start=buf.rfind(b'\n',0,match.start())+1
-            state=1;revision='';pending=set()
-            for line in buf[line_start:].splitlines():
+            try:
+                meta=json.loads(f.readline())
+                local=meta.get('type')=='session_meta' and meta.get('payload',{}).get('source') in ('cli','vscode','exec')
+            except (ValueError,UnicodeDecodeError,AttributeError):pass
+            for offset,line in reverse_lines(f):
+                # This is only a cheap prefilter. JSON structure determines semantics.
+                if not any(token in line for token in (b'event_msg',b'response_item')):continue
                 try:obj=json.loads(line)
                 except (ValueError,UnicodeDecodeError):continue
-                p=obj.get('payload',{});kind=p.get('type')
-                if obj.get('type')=='event_msg':
-                    if kind=='task_started':state=2;pending.clear();revision=''
-                    elif kind=='task_complete':state=3;pending.clear();revision=f'{path}:{start+match.start()}'
-                    elif kind=='turn_aborted':
-                        # User interruption ends the turn normally for lighting.
-                        # Keep unknown/failed abort reasons visible as errors.
-                        state=1 if p.get('reason')=='interrupted' else 5
-                        pending.clear();revision=''
-                elif obj.get('type')=='response_item' and state in (2,4):
-                    name=p.get('name','').split('.')[-1]
-                    if kind in ('function_call','custom_tool_call') and name in ('request_user_input','request_plugin_install'):
-                        pending.add(p.get('call_id'))
-                    elif kind in ('function_call_output','custom_tool_call_output'):
-                        pending.discard(p.get('call_id'))
-            return (4 if pending else state),revision
-    except OSError:return 1,''
+                if not isinstance(obj,dict):continue
+                p=obj.get('payload',{})
+                if not isinstance(p,dict):continue
+                # Do not retain tool output, prompts or answer text in the status adapter.
+                item=p.get('item',{})
+                payload={k:p[k] for k in ('type','reason','role','phase','channel','name','call_id','delivery') if k in p}
+                payload['turn_id']=turn_id(p) or turn_id(obj)
+                payload['error']=has_error(p.get('error'))
+                payload['has_questions']=bool(p.get('questions'))
+                if isinstance(item,dict):payload['item']={**{k:item[k] for k in ('type','phase','delivery') if k in item},'has_questions':bool(item.get('questions'))}
+                if str(p.get('name','')).split('.')[-1]=='request_user_input_async':
+                    arguments=json_value(p.get('arguments',p.get('input')))
+                    questions=arguments.get('questions') if isinstance(arguments,dict) else None
+                    payload['question_count']=len(questions) if isinstance(questions,list) and questions else 1
+                if p.get('type') in ('function_call_output','custom_tool_call_output'):
+                    output=json_value(p.get('output'))
+                    payload['question_rejected']=isinstance(output,dict) and (output.get('accepted') is False or output.get('isError') is True or has_error(output.get('error')))
+                if obj.get('type')=='response_item' and p.get('type')=='message' and p.get('role')=='user':
+                    payload['question_replies']=question_replies(p.get('content'))
+                elif obj.get('type')=='event_msg' and p.get('type')=='item_completed' and isinstance(item,dict) and item.get('type')=='UserMessage':
+                    payload['question_replies']=question_replies(item.get('content'))
+                records.append((offset,{'type':obj.get('type'),'timestamp':obj.get('timestamp'),'payload':payload}))
+                if obj.get('type')=='event_msg' and p.get('type')=='task_started':break
+        pending=set();async_pending={}
+        for offset,obj in reversed(records):
+            p=obj['payload'];kind=p.get('type');outer=obj.get('type')
+            if outer=='event_msg' and kind=='task_started':
+                result.update(state=2,revision='',turnId=p.get('turn_id',''),terminal=False,legacyRevisions=[])
+                started=event_time(obj.get('timestamp'));activity=started;unknown_time=started is None
+                pending.clear();async_pending.clear();continue
+            turn=p.get('turn_id','')
+            if turn and result['turnId'] and turn!=result['turnId']:continue
+            if outer=='response_item' or (outer=='event_msg' and kind!='thread_settings_applied'):
+                stamp=event_time(obj.get('timestamp'))
+                if stamp is None:unknown_time=True
+                else:activity=max(activity or stamp,stamp)
+            if outer=='event_msg' and kind in ('task_complete','turn_aborted'):
+                if kind=='turn_aborted':state=1 if p.get('reason')=='interrupted' else 5
+                else:state=5 if p.get('error') else 3
+                revision=f'{path}:turn:{result["turnId"]}' if result['turnId'] else f'{path}:{offset}'
+                result.update(state=state,revision=revision if state==3 else '',terminal=True)
+                if state==3:result['legacyRevisions'].append(f'{path}:{offset}')
+                else:result['legacyRevisions']=[]
+                # Successful turn completion does not answer an open question.
+                # Failure or a deliberate stop does cancel the pending request.
+                if state!=3:pending.clear();async_pending.clear()
+                continue
+            for call,index in p.get('question_replies',[]):
+                if call in async_pending:
+                    async_pending[call].discard(index)
+                    if not async_pending[call]:async_pending.pop(call)
+            if outer=='response_item' and kind in ('function_call_output','custom_tool_call_output'):
+                pending.discard(p.get('call_id'))
+                if p.get('question_rejected'):async_pending.pop(p.get('call_id'),None)
+            item=p.get('item',{})
+            final=(outer=='response_item' and kind=='message' and p.get('role')=='assistant' and p.get('delivery')!='async' and not p.get('has_questions') and
+                   (p.get('phase')=='final_answer' or p.get('channel')=='final')) or (
+                   outer=='event_msg' and kind=='item_completed' and isinstance(item,dict) and
+                   item.get('type')=='AgentMessage' and item.get('phase')=='final_answer' and item.get('delivery')!='async' and not item.get('has_questions'))
+            if final and not result['terminal']:
+                revision=f'{path}:turn:{result["turnId"]}' if result['turnId'] else f'{path}:{offset}'
+                result.update(state=3,revision=revision);result['legacyRevisions'].append(f'{path}:{offset}')
+            elif outer=='response_item' and result['state'] in (2,4):
+                name=str(p.get('name','')).split('.')[-1]
+                if kind in ('function_call','custom_tool_call') and name in ('request_user_input','request_plugin_install'):
+                    if p.get('call_id'):pending.add(p['call_id'])
+                elif kind in ('function_call','custom_tool_call') and name=='request_user_input_async':
+                    if p.get('call_id'):async_pending[p['call_id']]=set(range(p.get('question_count',1)))
+        completed=result['state']==3
+        if pending or async_pending:
+            result.update(state=4,revision='',legacyRevisions=[])
+        # A local process cannot survive an OS reboot. Settings-only writes do not
+        # restart its turn. Never use elapsed silence to infer success or failure.
+        if local and not completed and result['state'] in (2,4) and started is not None and not unknown_time:
+            boot=system_boot_time() if boot_time is None else boot_time
+            if boot is not None and started<boot and activity<boot:
+                result.update(state=1,revision='',terminal=True)
+    except OSError:pass
+    return result
 
 
-def catalog():
+def rollout_state(path,legacy_revisions=None):
+    snapshot=rollout_snapshot(path)
+    if legacy_revisions is not None:legacy_revisions.extend(snapshot['legacyRevisions'])
+    return snapshot['state'],snapshot['revision']
+
+
+def task_acknowledgements(cache,thread_id):
+    value=cache.setdefault('taskAck',{}).get(thread_id,[])
+    if isinstance(value,str):return [value] if value else []
+    return [r for r in value if isinstance(r,str) and r] if isinstance(value,list) else []
+
+
+def acknowledge_task(cache,thread_id,revision):
+    if not thread_id or not revision:return False
+    revisions=task_acknowledgements(cache,thread_id)
+    if revision in revisions:return False
+    # Keep distinct turns: a delayed older chooser must not replace a newer ack.
+    cache['taskAck'][thread_id]=revisions+[revision]
+    return True
+
+
+def task_slot_ids(cache):
+    """Keep legacy displayed positions on the first run of the stable-slot helper."""
+    stored=cache.get('taskSlots')
+    if not isinstance(stored,list):
+        displayed=cache.get('tasks',[])
+        stored=[r.get('id') if isinstance(r,dict) else None for r in displayed] if isinstance(displayed,list) else []
+    result=[];seen=set()
+    for identity in (stored+[None]*6)[:6]:
+        if not isinstance(identity,str) or not identity or identity in seen:identity=None
+        if identity:seen.add(identity)
+        result.append(identity)
+    return result
+
+
+def reconcile_task_slots(rows,assigned,initialized):
+    """Pure registry: existing IDs stay put; at most one new task replaces the oldest."""
+    by_id={};duplicates=set()
+    for row in rows:
+        identity=row.get('id') if isinstance(row,dict) else None
+        if not isinstance(identity,str) or not identity:continue
+        if identity in by_id:duplicates.add(identity)
+        else:by_id[identity]=dict(row)
+    for identity in duplicates:by_id.pop(identity,None)
+    def recency(row):
+        value=row.get('recency_at_ms',0)
+        return value if type(value) is int else 0
+    candidates=sorted(by_id.values(),key=lambda r:(recency(r),r['id']),reverse=True)
+    identities=task_slot_ids({'taskSlots':list(assigned)})
+    slots=[by_id.get(identity) for identity in identities]
+    occupied={r['id'] for r in slots if r is not None}
+    for index,row in enumerate(slots):
+        if row is not None:continue
+        candidate=next((r for r in candidates if r['id'] not in occupied),None)
+        if candidate is None:continue
+        slots[index]=candidate;occupied.add(candidate['id'])
+    if initialized and all(row is not None for row in slots):
+        newest=next((r for r in candidates if r['id'] not in occupied),None)
+        oldest=min(range(6),key=lambda i:recency(slots[i]))
+        if newest is not None and recency(newest)>recency(slots[oldest]):slots[oldest]=newest
+    return slots
+
+
+def catalog(assigned_ids=()):
     databases=sorted(CODEX.glob('state_*.sqlite'),key=lambda p:int(re.search(r'state_(\d+)',p.name)[1]),reverse=True)
-    if not databases:return []
+    if not databases:raise RuntimeError('Codex task catalog is unavailable')
     with sqlite3.connect(databases[0].as_uri()+'?mode=ro',uri=True,timeout=1) as db:
         db.row_factory=sqlite3.Row
+        db.execute('BEGIN') # Both queries see one read-only catalog snapshot.
         cols={r[1] for r in db.execute('PRAGMA table_info(threads)')}
-        order='recency_at_ms' if 'recency_at_ms' in cols else 'updated_at'
+        recency='COALESCE(recency_at_ms,0)' if 'recency_at_ms' in cols else 'COALESCE(updated_at,0)*1000'
         clause=" AND (thread_source IS NULL OR thread_source <> 'subagent')" if 'thread_source' in cols else ''
-        rows=db.execute(f"SELECT id,title,rollout_path FROM threads WHERE archived=0{clause} ORDER BY {order} DESC, id DESC LIMIT 6")
-        return [dict(r) for r in rows]
+        select=f"SELECT id,title,rollout_path,{recency} AS recency_at_ms FROM threads WHERE archived=0{clause}"
+        rows=[dict(r) for r in db.execute(select+' ORDER BY recency_at_ms DESC, id DESC LIMIT 32')]
+        # Assigned tasks may be older than the candidate window. Fetch them by ID
+        # so falling out of LIMIT 32 cannot be mistaken for deletion/archiving.
+        assigned=[identity for identity in task_slot_ids({'taskSlots':list(assigned_ids)}) if identity]
+        if assigned:
+            found={row['id'] for row in rows}
+            for row in db.execute(select+' AND id IN ('+','.join('?' for _ in assigned)+')',assigned):
+                if row['id'] not in found:rows.append(dict(row));found.add(row['id'])
+        return rows
 
 
 def panes():
@@ -153,15 +347,24 @@ def session_slots(inventory, cache=None):
 
 
 def status(cache):
-    rows=catalog();tasks=[]
-    seen=cache.setdefault('taskSeen',{});acked=cache.setdefault('taskAck',{})
-    for r in rows:
-        state,revision=rollout_state(r.pop('rollout_path'))
-        tid=r['id']
-        if tid not in seen and state==3:acked[tid]=revision # historical completions start white
-        seen[tid]=True
-        if state==3 and acked.get(tid)==revision:state=1
-        tasks.append({**r,'state':state,'revision':revision})
+    assigned=task_slot_ids(cache)
+    rows=catalog(assigned)
+    slots=reconcile_task_slots(rows,assigned,'taskSlots' in cache or any(assigned))
+    cache['taskSlots']=[row['id'] if row else None for row in slots]
+    tasks=[]
+    for r in slots:
+        if r is None:
+            # Keep interior holes so later physical keys do not shift. A missing
+            # id excludes this slot from the chooser and prevents navigation.
+            tasks.append({'state':0,'revision':''});continue
+        legacy=[]
+        state,revision=rollout_state(r['rollout_path'],legacy)
+        acknowledged=task_acknowledgements(cache,r['id'])
+        if state==3 and revision and (revision in acknowledged or any(old in acknowledged for old in legacy)):
+            acknowledge_task(cache,r['id'],revision)
+            state=1
+        tasks.append({'id':r['id'],'title':r.get('title',''),'state':state,'revision':revision})
+    while tasks and 'id' not in tasks[-1]:tasks.pop()
     try:
         terminals=session_slots(panes(),cache);cache['lastTerminals']=terminals;cache['tmuxError']=''
     except (OSError,RuntimeError,subprocess.TimeoutExpired) as e:
@@ -290,9 +493,9 @@ def main():
         except (OSError,ValueError):cache={}
         command=sys.argv[1] if len(sys.argv)>1 else 'status'
         if command=='status':result=status(cache)
-        elif command=='reset':cache={'terminalSlots':cache.get('terminalSlots',{})};result={'ok':True}
+        elif command=='reset':cache={'terminalSlots':cache.get('terminalSlots',{}),'taskAck':cache.get('taskAck',{}),'taskSlots':task_slot_ids(cache)};result={'ok':True}
         elif command=='ack-task':
-            cache.setdefault('taskAck',{})[sys.argv[2]]=sys.argv[3];result={'ok':True}
+            result={'ok':True,'changed':acknowledge_task(cache,sys.argv[2],sys.argv[3])}
         elif command=='tmux':result=tmux_action(sys.argv[2],cache,allow_recent='--allow-recent' in sys.argv[3:])
         else:raise ValueError('Unknown command')
         atomic_json(cachepath,cache);print(json.dumps(result,ensure_ascii=False))

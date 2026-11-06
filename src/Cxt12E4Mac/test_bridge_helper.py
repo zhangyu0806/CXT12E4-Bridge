@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import sqlite3
 import tempfile
 import subprocess
 from pathlib import Path
@@ -20,13 +21,161 @@ class Tests(unittest.TestCase):
         self.assertEqual(self.state(event('task_started')+'{}\n'*100000)[0],2)
     def test_completion(self):
         state,rev=self.state(event('task_started')+event('task_complete'));self.assertEqual(state,3);self.assertTrue(rev)
+    def test_completion_is_structural_and_order_independent(self):
+        complete=json.dumps({'payload':{'turn_id':'a','type':'task_complete'},'timestamp':'2026-10-22T01:00:00Z','type':'event_msg'})+'\n'
+        self.assertEqual(self.state(event('task_started',turn_id='a')+complete)[0],3)
+        for text in (json.dumps({'type':'not_event_msg','payload':{'type':'task_complete'}}),
+                     response('function_call_output',call_id='x',output=event('task_complete'))):
+            self.assertEqual(self.state(event('task_started')+text)[0],2)
+    def test_final_answer_formats_and_commentary_are_distinct(self):
+        finals=[response('message',role='assistant',phase='final_answer'),response('message',role='assistant',channel='final'),
+                event('item_completed',item={'type':'AgentMessage','phase':'final_answer'})]
+        for final in finals:
+            with self.subTest(final=final):
+                self.assertEqual(self.state(event('task_started')+final)[0],3)
+                self.assertEqual(self.state(final+event('task_started'))[0],2)
+        for nonfinal in (response('message',role='assistant',phase='commentary',status='completed'),
+                         response('message',role='user',phase='final_answer'),
+                         event('item_completed',item={'type':'CommandExecution','status':'completed','phase':'final_answer'}),
+                         event('item_completed',item={'type':'AgentMessage','phase':'commentary','status':'completed'})):
+            self.assertEqual(self.state(event('task_started')+nonfinal)[0],2)
+    def test_failure_or_stop_wins_over_final_message(self):
+        final=response('message',role='assistant',phase='final_answer')
+        for terminal,expected in [(event('task_complete',error={'codex_error_info':'server_overloaded'}),5),
+                                  (event('turn_aborted',reason='interrupted'),1)]:
+            for text in (final+terminal,terminal+final):
+                self.assertEqual(self.state(event('task_started')+text),(expected,''))
+        for error in (None,False,0,'', '   ',{},[]):
+            self.assertEqual(self.state(event('task_complete',error=error))[0],3)
+    def test_late_events_from_previous_turn_cannot_end_current_turn(self):
+        for late in (event('task_complete',turn_id='old'),event('turn_aborted',turn_id='old',reason='interrupted'),
+                     event('item_completed',turn_id='old',item={'type':'AgentMessage','phase':'final_answer'})):
+            self.assertEqual(self.state(event('task_started',turn_id='new')+late)[0],2)
+        late=json.dumps({'type':'event_msg','turnId':'old','payload':{'type':'task_complete'}})+'\n'
+        self.assertEqual(self.state(event('task_started',turnId='new')+late)[0],2)
+    def test_completion_revision_is_stable_byte_offset(self):
+        prefix=response('message',role='assistant',phase='commentary',content='测试')
+        text=prefix+event('task_complete')
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(text.encode());f.flush()
+            first=h.rollout_state(f.name)
+            self.assertEqual(first,(3,f'{f.name}:{len(prefix.encode())}'))
+            f.write(event('thread_settings_applied').encode());f.flush()
+            self.assertEqual(h.rollout_state(f.name),first)
+    def test_final_and_lifecycle_completion_share_turn_revision(self):
+        with tempfile.NamedTemporaryFile() as f:
+            f.write((event('task_started',turn_id='a')+response('message',role='assistant',phase='final_answer')).encode());f.flush()
+            before=h.rollout_state(f.name)
+            f.write(event('task_complete',turn_id='a').encode());f.flush()
+            self.assertEqual(before,h.rollout_state(f.name))
+            f.write((event('task_started',turn_id='b')+event('task_complete',turn_id='b')).encode());f.flush()
+            self.assertNotEqual(before[1],h.rollout_state(f.name)[1])
+    def test_reverse_reader_handles_chunk_boundaries_and_partial_json(self):
+        text=response('function_call_output',output='x'*140000)+event('task_started')+event('task_complete')+'{"partial":'
+        self.assertEqual(self.state(text)[0],3)
+    def local_log(self,source='exec',start='2026-10-22T00:26:08Z',activity='2026-10-22T00:36:35Z'):
+        rows=[{'type':'session_meta','payload':{'source':source}},
+              {'timestamp':start,'type':'event_msg','payload':{'type':'task_started','turn_id':'a'}},
+              {'timestamp':activity,'type':'event_msg','payload':{'type':'item_completed','turn_id':'a','item':{'type':'CommandExecution','status':'completed'}}},
+              {'timestamp':'2026-10-22T03:19:00Z','type':'event_msg','payload':{'type':'thread_settings_applied'}}]
+        return ''.join(json.dumps(r)+'\n' for r in rows)
+    def test_preboot_local_running_or_waiting_turn_is_interrupted(self):
+        with patch.object(h,'system_boot_time',return_value=h.event_time('2026-10-22T00:38:01Z')):
+            for source in ('cli','vscode','exec'):
+                self.assertEqual(self.state(self.local_log(source)),(1,''))
+            request=json.dumps({'timestamp':'2026-10-22T00:36:36Z','type':'response_item','payload':{'type':'function_call','name':'request_user_input','call_id':'x'}})+'\n'
+            self.assertEqual(self.state(self.local_log()+request),(1,''))
+    def test_boot_recovery_does_not_override_completion_or_error(self):
+        with patch.object(h,'system_boot_time',return_value=h.event_time('2026-10-22T00:38:01Z')):
+            self.assertEqual(self.state(self.local_log()+event('task_complete'))[0],3)
+            self.assertEqual(self.state(self.local_log()+event('task_complete',error={'code':'failed'}))[0],5)
+    def test_boot_recovery_requires_local_source_valid_time_and_no_new_work(self):
+        with patch.object(h,'system_boot_time',return_value=h.event_time('2026-10-22T00:38:01Z')):
+            for text in (self.local_log(source='cloud'),self.local_log(source={'subagent':{}}),self.local_log(source=None),
+                         self.local_log(start=None),self.local_log(activity=None),
+                         self.local_log(start='2026-10-22T00:40:00Z',activity='2026-10-22T00:41:00Z'),
+                         self.local_log(activity='2026-10-22T00:40:00Z')):
+                self.assertEqual(self.state(text)[0],2)
+        with patch.object(h,'system_boot_time',return_value=None):self.assertEqual(self.state(self.local_log())[0],2)
     def test_pending_only_current_turn(self):
         request=response('function_call',name='functions.request_user_input',call_id='x')
         self.assertEqual(self.state(event('task_started')+request)[0],4)
         self.assertEqual(self.state(event('task_started')+request+response('function_call_output',call_id='x'))[0],2)
         self.assertEqual(self.state(event('task_started')+request+event('task_started'))[0],2)
-    def test_async_question_does_not_block(self):
-        self.assertEqual(self.state(event('task_started')+response('function_call',name='functions.request_user_input_async',call_id='x'))[0],2)
+    def async_question(self,count=1):
+        return response('function_call',name='functions.request_user_input_async',call_id='x',arguments=json.dumps({'questions':[{'title':'test'}]*count}))
+    def async_reply(self,index=0,call='x'):
+        return '<send_user_message_question_reply>'+json.dumps([{'questionItemId':json.dumps(['request_user_input_async',call,index]),'answer':'ok'}])+'</send_user_message_question_reply>'
+    def test_async_question_is_yellow_until_user_reply_not_acceptance(self):
+        pending=event('task_started')+self.async_question()
+        pending+=event('item_completed',item={'type':'AgentMessage','id':'x','phase':'final_answer','delivery':'async','questions':[{'title':'test'}]})
+        accepted=response('function_call_output',call_id='x',output=json.dumps({'accepted':True}))
+        reply=response('message',role='user',content=[{'type':'input_text','text':self.async_reply()}])
+        for text in (pending,pending+accepted,pending+accepted+event('item_completed',item={'type':'CommandExecution','status':'completed'})):
+            self.assertEqual(self.state(text)[0],4)
+        self.assertEqual(self.state(pending+accepted+reply)[0],2)
+        self.assertEqual(self.state(pending+accepted+reply+event('task_complete'))[0],3)
+    def test_question_display_is_not_a_final_answer(self):
+        for extra in ({'delivery':'async'},{'questions':[{'title':'test'}]}):
+            for display in (event('item_completed',item={'type':'AgentMessage','phase':'final_answer',**extra}),
+                            response('message',role='assistant',phase='final_answer',**extra)):
+                self.assertEqual(self.state(event('task_started')+self.async_question()+display)[0],4)
+    def test_async_answers_match_each_question_and_call(self):
+        pending=event('task_started')+self.async_question(2)
+        first=response('message',role='user',content=[{'type':'input_text','text':self.async_reply(0)}])
+        second=event('item_completed',item={'type':'UserMessage','content':[{'type':'text','text':self.async_reply(1)}]})
+        self.assertEqual(self.state(pending+first+first)[0],4)
+        self.assertEqual(self.state(pending+first+second)[0],2)
+        for ignored in (response('message',role='user',content=[{'type':'input_text','text':'continue'}]),
+                        response('message',role='user',content=[{'type':'input_text','text':self.async_reply(call='other')}]),
+                        response('message',role='assistant',content=[{'type':'text','text':self.async_reply()}]),
+                        response('function_call_output',call_id='other',output=self.async_reply())):
+            self.assertEqual(self.state(event('task_started')+self.async_question()+ignored)[0],4)
+    def test_rejected_stopped_or_superseded_async_question_does_not_leave_yellow(self):
+        pending=event('task_started')+self.async_question()
+        for output in ({'accepted':False},{'error':'tool rejected'},{'isError':True}):
+            self.assertEqual(self.state(pending+response('function_call_output',call_id='x',output=json.dumps(output)))[0],2)
+        self.assertEqual(self.state(pending+event('task_started'))[0],2)
+        self.assertEqual(self.state(pending+event('task_complete'))[0],4)
+        self.assertEqual(self.state(pending+event('turn_aborted',reason='interrupted'))[0],1)
+    def test_unanswered_question_survives_final_and_successful_turn_end(self):
+        pending=event('task_started',turn_id='a')+self.async_question()
+        accepted=response('function_call_output',call_id='x',output=json.dumps({'accepted':True}))
+        for end in (response('message',role='assistant',phase='final_answer'),
+                    event('item_completed',item={'type':'AgentMessage','phase':'final_answer'}),
+                    event('task_complete',turn_id='a'),
+                    response('message',role='assistant',phase='final_answer')+event('task_complete',turn_id='a')):
+            with self.subTest(end=end):
+                self.assertEqual(self.state(pending+accepted+end),(4,''))
+                self.assertEqual(self.state(pending+end+accepted),(4,''))
+        self.assertEqual(self.state(pending+event('task_complete',error='failure')),(5,''))
+        self.assertEqual(self.state(pending+event('turn_aborted',reason='interrupted')),(1,''))
+    def test_late_reply_or_rejection_resolves_only_the_matching_completed_question(self):
+        pending=event('task_started',turn_id='a')+self.async_question(2)+event('task_complete',turn_id='a')
+        reply=lambda index:response('message',role='user',content=[{'type':'input_text','text':self.async_reply(index)}])
+        self.assertEqual(self.state(pending+reply(0)+reply(0)),(4,''))
+        self.assertEqual(self.state(pending+reply(0)+reply(1))[0],3)
+        self.assertEqual(self.state(pending+event('task_started',turn_id='b')+reply(0)),(2,''))
+        rejected=response('function_call_output',call_id='x',output=json.dumps({'accepted':False}))
+        self.assertEqual(self.state(pending+rejected)[0],3)
+        unrelated=response('function_call_output',call_id='other',output=json.dumps({'accepted':False}))
+        self.assertEqual(self.state(pending+unrelated),(4,''))
+    def test_opening_waiting_task_cannot_acknowledge_the_future_completion(self):
+        with tempfile.NamedTemporaryFile() as f:
+            f.write((event('task_started',turn_id='a')+self.async_question()+event('task_complete',turn_id='a')).encode());f.flush()
+            row={'id':'a','title':'A','rollout_path':f.name};cache={}
+            with patch.object(h,'catalog',return_value=[row]),patch.object(h,'panes',return_value=[]):
+                waiting=h.status(cache)['tasks'][0]
+                self.assertEqual((waiting['state'],waiting['revision']),(4,''))
+                self.assertFalse(h.acknowledge_task(cache,'a',waiting['revision']))
+                f.write(response('message',role='user',content=[{'type':'input_text','text':self.async_reply()}]).encode());f.flush()
+                self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
+    def test_successful_turn_with_unanswered_question_remains_yellow_across_boot(self):
+        records=[{'type':'session_meta','payload':{'source':'cli'}},
+                 json.loads(event('task_started')),json.loads(self.async_question()),json.loads(event('task_complete'))]
+        text=''.join(json.dumps({**r,'timestamp':'2026-10-22T00:30:00Z'})+'\n' for r in records)
+        with patch.object(h,'system_boot_time',return_value=h.event_time('2026-10-22T00:38:01Z')):
+            self.assertEqual(self.state(text),(4,''))
     def test_abort_and_partial_line(self):
         self.assertEqual(self.state(event('turn_aborted')+'{"partial":')[0],5)
     def test_user_stop_is_idle_and_clears_pending_or_completed_state(self):
@@ -41,7 +190,7 @@ class Tests(unittest.TestCase):
     def test_previously_red_task_returns_idle_without_resetting_cache(self):
         row={'id':'stopped','title':'Stopped','rollout_path':'p'}
         cache={'tasks':[{**row,'state':5,'revision':''}],'taskSeen':{'stopped':True},'taskAck':{'stopped':'old'}}
-        with patch.object(h,'catalog',side_effect=lambda:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(1,'')):
+        with patch.object(h,'catalog',side_effect=lambda *args:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(1,'')):
             self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
     def test_duplicate_slot_fails_closed(self):
         inv=[dict(session_name='01-a',session_id='$1',session_created='10',pid='11'),dict(session_name='01-b',session_id='$2',session_created='10',pid='11')]
@@ -143,10 +292,10 @@ class Tests(unittest.TestCase):
         self.assertEqual(slots[0]['name'],'new-server')
     def test_restart_preserves_slot_assignments(self):
         with tempfile.TemporaryDirectory() as tmp,patch.object(h,'ROOT',Path(tmp)),patch.object(h.sys,'argv',['bridge_helper.py','reset']),patch('builtins.print'):
-            h.atomic_json(Path(tmp)/'status-cache.json',{'terminalSlots':{'$1:10:11':1},'taskSeen':{'old':True}})
+            h.atomic_json(Path(tmp)/'status-cache.json',{'terminalSlots':{'$1:10:11':1},'taskSeen':{'old':True},'taskAck':{'a':['turn-a']}})
             h.main()
             cache=json.loads((Path(tmp)/'status-cache.json').read_text())
-            self.assertEqual(cache,{'terminalSlots':{'$1:10:11':1}})
+            self.assertEqual(cache,{'terminalSlots':{'$1:10:11':1},'taskAck':{'a':['turn-a']},'taskSlots':[None]*6})
     def test_multiple_clients_refused(self):
         with patch.object(h,'clients',return_value=[{'client_tty':'a'},{'client_tty':'b'}]):
             with self.assertRaises(RuntimeError):h.active_client()
@@ -198,19 +347,129 @@ class Tests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):h.call_tmux('switch-client','-c','x','-t','$1')
         with patch.object(h.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'','cannot open config: No such file or directory')):
             with self.assertRaises(RuntimeError):h.call_tmux('list-panes','-a')
-    def test_historical_completion_and_new_revision(self):
+    def test_completed_is_green_until_viewed_then_white(self):
+        row={'id':'a','title':'A','rollout_path':'p'};cache={'taskAck':{}}
+        with patch.object(h,'catalog',side_effect=lambda *args:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(3,'v1')):
+            self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
+            self.assertTrue(h.acknowledge_task(cache,'a','v1'))
+            self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
+            # The persisted confirmation survives a new helper process / Bridge restart.
+            self.assertEqual(h.status(json.loads(json.dumps(cache)))['tasks'][0]['state'],1)
+        with patch.object(h,'catalog',side_effect=lambda *args:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(3,'v2')):
+            self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
+            h.acknowledge_task(cache,'a','v1')
+            self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
+            h.acknowledge_task(cache,'a','v2')
+            h.acknowledge_task(cache,'a','v1')
+            self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
+            self.assertEqual(h.status({})['tasks'][0]['state'],3)
+    def test_viewing_one_task_does_not_ack_another_or_clear_active_state(self):
         row={'id':'a','title':'A','rollout_path':'p'};cache={}
-        with patch.object(h,'catalog',side_effect=lambda:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(3,'v1')):
-            self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
-        with patch.object(h,'catalog',side_effect=lambda:[dict(row)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(3,'v2')):
-            self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
-            cache['taskAck']['a']='v1'
-            self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
-            cache['taskAck']['a']='v2'
-            self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
+        self.assertFalse(h.acknowledge_task(cache,'a',''))
+        h.acknowledge_task(cache,'other','v1')
+        with patch.object(h,'catalog',side_effect=lambda *args:[dict(row)]),patch.object(h,'panes',return_value=[]):
+            with patch.object(h,'rollout_state',return_value=(3,'v1')):self.assertEqual(h.status(cache)['tasks'][0]['state'],3)
+            h.acknowledge_task(cache,'a','v1')
+            for state in (1,2,4,5):
+                with patch.object(h,'rollout_state',return_value=(state,'')):self.assertEqual(h.status(cache)['tasks'][0]['state'],state)
+    def test_legacy_view_confirmation_migrates_to_current_turn_identity(self):
+        with tempfile.NamedTemporaryFile() as f:
+            start=event('task_started',turn_id='a');f.write((start+event('task_complete',turn_id='a')).encode());f.flush()
+            row={'id':'a','title':'A','rollout_path':f.name}
+            cache={'taskAck':{'a':f'{f.name}:{len(start.encode())}'}}
+            with patch.object(h,'catalog',side_effect=lambda *args:[dict(row)]),patch.object(h,'panes',return_value=[]):
+                self.assertEqual(h.status(cache)['tasks'][0]['state'],1)
+                self.assertIn(f'{f.name}:turn:a',cache['taskAck']['a'])
+    def test_ack_command_persists_only_the_requested_completion(self):
+        with tempfile.TemporaryDirectory() as tmp,patch.object(h,'ROOT',Path(tmp)),patch('builtins.print'):
+            with patch.object(h.sys,'argv',['bridge_helper.py','ack-task','a','v1']):h.main()
+            with patch.object(h.sys,'argv',['bridge_helper.py','ack-task','a','v2']):h.main()
+            with patch.object(h.sys,'argv',['bridge_helper.py','ack-task','a','v1']):h.main()
+            self.assertEqual(json.loads((Path(tmp)/'status-cache.json').read_text())['taskAck']['a'],['v1','v2'])
     def test_tmux_failure_keeps_last_inventory(self):
         cache={'lastTerminals':[{'id':'a','state':2,'revision':0}]+[None]*5}
         with patch.object(h,'catalog',return_value=[]),patch.object(h,'panes',side_effect=RuntimeError('timeout')):
             self.assertEqual(h.status(cache)['terminals'][0]['state'],2)
+
+class TaskSlotTests(unittest.TestCase):
+    def row(self,identity,recency):
+        return {'id':identity,'title':identity.upper(),'rollout_path':'log-'+identity,'recency_at_ms':recency}
+    def ids(self,slots):return [row['id'] if row else None for row in slots]
+    def reconcile(self,rows,assigned=(),initialized=False):
+        return h.reconcile_task_slots(rows,assigned,initialized)
+    def test_initial_recent_order_and_fewer_than_six(self):
+        rows=[self.row('a',10),self.row('b',30),self.row('c',20)]
+        self.assertEqual(self.ids(self.reconcile(rows)),['b','c','a',None,None,None])
+        self.assertEqual(self.ids(self.reconcile([])),[None]*6)
+    def test_recent_activity_never_reorders_assigned_tasks(self):
+        assigned=list('abcdef')
+        rows=[self.row(identity,100+index) for index,identity in enumerate(assigned)]
+        self.assertEqual(self.ids(self.reconcile(list(reversed(rows)),assigned,True)),assigned)
+        self.assertEqual(self.ids(self.reconcile(rows,assigned,True)),assigned)
+    def test_new_task_replaces_only_the_least_recent_slot(self):
+        assigned=list('abcdef')
+        rows=[self.row(identity,100+index) for index,identity in enumerate(assigned)]
+        rows += [self.row('new',999),self.row('also-new',998)]
+        self.assertEqual(self.ids(self.reconcile(rows,assigned,True)),['new','b','c','d','e','f'])
+        self.assertEqual(self.ids(self.reconcile(rows[:6]+[self.row('old',99)],assigned,True)),assigned)
+        self.assertEqual(self.ids(self.reconcile(rows[:6]+[self.row('equal',100)],assigned,True)),assigned)
+    def test_archived_or_deleted_task_fills_only_its_empty_slot(self):
+        rows=[self.row('a',30),self.row('c',20),self.row('replacement',10)]
+        self.assertEqual(self.ids(self.reconcile(rows,['a','removed','c'],True)),['a','replacement','c',None,None,None])
+        self.assertEqual(self.ids(self.reconcile(rows[:2],['a','removed','c'],True)),['a',None,'c',None,None,None])
+    def test_duplicate_or_invalid_ids_cannot_alias_two_physical_keys(self):
+        rows=[self.row('a',20),self.row('b',10),{},None,{'id':123}]
+        self.assertEqual(self.ids(self.reconcile(rows,['a','a','b'],True)),['a',None,'b',None,None,None])
+        conflicting=[self.row('a',20),{**self.row('a',30),'rollout_path':'other-log'},self.row('b',10)]
+        self.assertEqual(self.ids(self.reconcile(conflicting,['a','b'],True)),[None,'b',None,None,None,None])
+    def test_status_migrates_displayed_order_and_persists_it_across_restarts(self):
+        cache={'tasks':[{'id':'a'},{'id':'b'},{'id':'c'}],'taskAck':{'c':['seen']}}
+        rows=[self.row('a',10),self.row('b',30),self.row('c',20)]
+        def state(path,legacy):return ({'log-a':4,'log-b':2,'log-c':3}[path],'seen' if path=='log-c' else '')
+        with patch.object(h,'catalog',return_value=rows) as read,patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',side_effect=state):
+            result=h.status(cache)
+            read.assert_called_once_with(['a','b','c',None,None,None])
+            self.assertEqual([r['id'] for r in result['tasks']],['a','b','c'])
+            self.assertEqual([r['state'] for r in result['tasks']],[4,2,1])
+            self.assertEqual(cache['taskSlots'],['a','b','c',None,None,None])
+            restarted=json.loads(json.dumps(cache))
+            self.assertEqual(h.status(restarted)['tasks'],result['tasks'])
+            self.assertEqual(restarted['taskAck'],{'c':['seen']})
+        self.assertTrue(all('rollout_path' in row for row in rows),'status must not mutate the catalog snapshot')
+    def test_interior_holes_are_off_and_cannot_navigate_to_another_task(self):
+        cache={'taskSlots':['a','removed','c',None,None,None]}
+        with patch.object(h,'catalog',return_value=[self.row('a',20),self.row('c',10)]),patch.object(h,'panes',return_value=[]),patch.object(h,'rollout_state',return_value=(2,'')):
+            tasks=h.status(cache)['tasks']
+            self.assertEqual(len(tasks),3)
+            self.assertEqual(tasks[1],{'state':0,'revision':''})
+            self.assertEqual(tasks[2]['id'],'c')
+    def test_catalog_resolves_assigned_ids_outside_recent_window(self):
+        with tempfile.TemporaryDirectory() as tmp,patch.object(h,'CODEX',Path(tmp)):
+            path=Path(tmp)/'state_5.sqlite'
+            with sqlite3.connect(path) as db:
+                db.execute('CREATE TABLE threads(id TEXT PRIMARY KEY,title TEXT,rollout_path TEXT,recency_at_ms INTEGER,archived INTEGER,thread_source TEXT)')
+                db.executemany('INSERT INTO threads VALUES(?,?,?,?,?,?)',[(str(i),'Task '+str(i),'log-'+str(i),i,0,None) for i in range(40)])
+                db.executemany('INSERT INTO threads VALUES(?,?,?,?,?,?)',[('archived','Archived','log-a',999,1,None),('child','Child','log-c',999,0,'subagent')])
+            rows=h.catalog(['0','1','archived','child','missing'])
+            ids={row['id'] for row in rows}
+            self.assertEqual(len(rows),34)
+            self.assertTrue({'0','1','39'}.issubset(ids))
+            self.assertFalse({'2','archived','child','missing'} & ids)
+            stable=self.reconcile(rows,['0','1','39','38','37','36'],True)
+            self.assertEqual(self.ids(stable),['35','1','39','38','37','36'])
+    def test_missing_catalog_is_not_an_empty_success_and_preserves_cache(self):
+        cache={'taskSlots':['a',None,'c',None,None,None],'tasks':[{'id':'a'},{'state':0},{'id':'c'}],'taskAck':{'a':['seen']}}
+        original=json.loads(json.dumps(cache))
+        with tempfile.TemporaryDirectory() as tmp,patch.object(h,'CODEX',Path(tmp)):
+            with self.assertRaisesRegex(RuntimeError,'catalog is unavailable'):h.status(cache)
+        self.assertEqual(cache,original)
+    def test_reset_retains_task_slots_and_completion_acknowledgements(self):
+        with tempfile.TemporaryDirectory() as tmp,patch.object(h,'ROOT',Path(tmp)):
+            cache={'taskSlots':['a',None,'c',None,None,None],'taskAck':{'a':['seen']}}
+            h.atomic_json(Path(tmp)/'status-cache.json',cache)
+            with patch('sys.argv',['helper','reset']),patch('builtins.print'):h.main()
+            reset=json.loads((Path(tmp)/'status-cache.json').read_text())
+            self.assertEqual(reset['taskSlots'],cache['taskSlots'])
+            self.assertEqual(reset['taskAck'],cache['taskAck'])
 
 if __name__=='__main__':unittest.main()

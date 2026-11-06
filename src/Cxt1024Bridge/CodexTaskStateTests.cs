@@ -80,7 +80,7 @@ namespace Cxt1024Bridge
             State(started + request + second + answer, AiTaskState.WaitingForInput, "another unanswered question stays yellow");
             State(started + request + started, AiTaskState.Thinking, "previous turn question cannot leak");
             State(started + request + stopped, AiTaskState.Idle, "stop clears pending requests");
-            State(started + request + final, AiTaskState.Completed, "final clears pending requests");
+            State(started + request + final, AiTaskState.WaitingForInput, "final preserves pending requests until answered");
             State(started + Response("\"type\":\"function_call\",\"name\":\"functions.request_user_input_async\",\"call_id\":\"one\""), AiTaskState.WaitingForInput, "asynchronous question waits for a user reply");
             string padding = Response("\"type\":\"message\",\"role\":\"assistant\",\"phase\":\"commentary\",\"content\":\"" + new string('字', 100000) + "\"");
             State(started + padding, AiTaskState.Thinking, "large multibyte record across read blocks");
@@ -129,6 +129,7 @@ namespace Cxt1024Bridge
             CompletionRevisionChecks();
             RolloutOffsetChecks();
             AsyncQuestionChecks();
+            EndedTurnWaitingChecks();
             Console.WriteLine("Codex task state tests: " + _checks + " passed.");
         }
 
@@ -280,11 +281,58 @@ namespace Cxt1024Bridge
             string eventReply = Json(new { type = "event_msg", payload = new { type = "item_completed", item = new { type = "UserMessage", content = ReplyContent("call_a", 0) } } }) + "\n";
             State(started + question + eventReply, AiTaskState.Thinking, "UserMessage item completion carries user reply");
             State(started + question + reply + eventReply, AiTaskState.Thinking, "response and event duplicate reply is idempotent");
-            State(started + question + Event("task_complete", ""), AiTaskState.Completed, "terminal completion clears async waiting");
-            State(started + question + Response("\"type\":\"message\",\"role\":\"assistant\",\"phase\":\"final_answer\""), AiTaskState.Completed, "final fallback clears async waiting");
+            State(started + question + Event("task_complete", ""), AiTaskState.WaitingForInput, "successful turn completion preserves unanswered async question");
+            State(started + question + Response("\"type\":\"message\",\"role\":\"assistant\",\"phase\":\"final_answer\""), AiTaskState.WaitingForInput, "final fallback preserves unanswered async question");
             State(started + question + Event("turn_aborted", ",\"reason\":\"interrupted\""), AiTaskState.Idle, "user stop clears async waiting");
             State(started + question + Event("task_complete", ",\"error\":\"failed\""), AiTaskState.Error, "task failure clears async waiting");
             State(started + question + started, AiTaskState.Thinking, "new turn clears async waiting");
+        }
+
+        private static void EndedTurnWaitingChecks()
+        {
+            string started = Event("task_started", ",\"turn_id\":\"current\"");
+            string question = AsyncRequest("call_a", 1, "functions.request_user_input_async", "function_call");
+            string accepted = AsyncOutput("call_a", new { accepted = true });
+            string final = Response("\"type\":\"message\",\"role\":\"assistant\",\"phase\":\"final_answer\"");
+            string completed = Event("task_complete", ",\"turn_id\":\"current\"");
+            string reply = UserReply("call_a", 0, "user", "current");
+            foreach (string ending in new[] { final, completed, final + completed,
+                Response("\"type\":\"message\",\"role\":\"assistant\",\"channel\":\"final\""),
+                Event("item_completed", ",\"item\":{\"type\":\"AgentMessage\",\"phase\":\"final_answer\"}") })
+            {
+                string waiting = started + question + accepted + ending;
+                ChatGptTaskStatusSlot pendingSlot = Slot(waiting);
+                Check(pendingSlot.State == AiTaskState.WaitingForInput, "ended turn with outstanding question remains yellow");
+                Check(pendingSlot.CompletionRevision.Length == 0, "waiting has no acknowledgeable completion revision");
+                var latch = new ChatGptCompletionLatch();
+                Check(!latch.Acknowledge(pendingSlot), "viewing unanswered task cannot pre-acknowledge completion");
+                State(waiting + accepted, AiTaskState.WaitingForInput, "late accepted receipt does not answer ended-turn question");
+                State(waiting + UserReply("other", 0, "user", "current"), AiTaskState.WaitingForInput, "unrelated reply cannot clear ended-turn question");
+                State(waiting + UserReply("call_a", 0, "user", "older"), AiTaskState.WaitingForInput, "wrong-turn reply cannot clear ended-turn question");
+                State(waiting + reply, AiTaskState.Completed, "same-turn reply exposes known completion without inventing new work");
+                Check(Apply(latch, waiting + reply) == AiTaskState.Completed, "resolved completion remains unviewed after opening pending question");
+                Check(Slot(waiting + reply).CompletionRevision.Length != 0, "resolved completion regains its revision");
+                State(waiting + reply + reply, AiTaskState.Completed, "duplicate reply after completion is idempotent");
+                State(waiting + AsyncOutput("call_a", new { accepted = false }), AiTaskState.Completed, "explicit request rejection after turn end removes waiting");
+                State(waiting + Event("turn_aborted", ",\"reason\":\"interrupted\""), AiTaskState.Idle, "manual stop cancels ended-turn question");
+                State(waiting + Event("task_complete", ",\"error\":\"failed\""), AiTaskState.Error, "explicit error cancels ended-turn question");
+                State(waiting + Event("task_started", ",\"turn_id\":\"resumed\"") +
+                    UserReply("call_a", 0, "user", "resumed"), AiTaskState.Thinking, "reply delivered in a resumed turn is blue");
+            }
+            string two = started + AsyncRequest("call_a", 2, "request_user_input_async", "function_call") + accepted + final + completed;
+            State(two + reply, AiTaskState.WaitingForInput, "only one of two replies after completion remains yellow");
+            Check(Slot(two + reply).CompletionRevision.Length == 0, "partially answered completion cannot be acknowledged");
+            State(two + reply + UserReply("call_a", 1, "user", "current"), AiTaskState.Completed, "all ended-turn questions answered exposes completion");
+            string independent = started + question + AsyncRequest("call_b", 1, "request_user_input_async", "custom_tool_call") + final + completed;
+            State(independent + reply, AiTaskState.WaitingForInput, "other ended-turn call remains pending");
+            State(independent + reply + UserReply("call_b", 0, "user", "current"), AiTaskState.Completed, "all ended-turn calls answered exposes completion");
+            string synchronous = started + Request("sync", "request_user_input") + "\n" + completed;
+            State(synchronous, AiTaskState.WaitingForInput, "success cannot silently dismiss synchronous request either");
+            State(synchronous + Answer("sync"), AiTaskState.Completed, "matching synchronous output resolves ended-turn request");
+            string local = Meta("\"cli\"") + At(started, "2026-10-22T00:20:00Z") +
+                At(question, "2026-10-22T00:21:00Z") + At(accepted, "2026-10-22T00:21:01Z") +
+                At(final, "2026-10-22T00:21:02Z") + At(completed, "2026-10-22T00:21:03Z");
+            BootState(local, AiTaskState.WaitingForInput, "already-ended unanswered question is not a reboot-interrupted running task");
         }
         private static string Request(string id, string name)
         {

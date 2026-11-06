@@ -77,6 +77,8 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
             if action.kind == .tap || action.kind == .encoder {
                 let control=action.kind == .tap ? "button.\(action.number)":"encoder.\(action.number).\(action.gesture)"
                 self.dispatchMapped(self.profiles.action("keyboard",control,c.layer),c,time:action.time,maxAge:action.kind == .encoder && action.gesture != 1 ? 0.25:0.5,device:"keyboard")
+            } else if action.kind == .hold,let index=taskKeys.firstIndex(of:action.number) {
+                self.dispatchTask(index+1,c,time:action.time)
             } else {self.work.async {self.actions.perform(action,c)}}
         }
         hid.onReport={ [weak self] bytes in
@@ -196,9 +198,10 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
             menu.items.first(where:{$0.action == #selector(automatic(_:))})?.state=manual == nil ? .on:.off
             for entry in menu.items where entry.action == #selector(selectLayer(_:)) {entry.state=entry.tag==c.layer ? .on:.off}
         }
-        if Date()>noticeUntil {noticeLine.title="任务 \(tasks.count) / tmux \(terminals.compactMap{$0}.count)"}
+        let taskCount=tasks.filter{!($0["id"] as? String ?? "").isEmpty}.count
+        if Date()>noticeUntil {noticeLine.title="任务 \(taskCount) / tmux \(terminals.compactMap{$0}.count)"}
         if tick%4==0 {
-            var state:[String:Any] = ["pid":ProcessInfo.processInfo.processIdentifier,"accessibility":ax,"inputMonitoring":input,"inputReceiverReady":self.input.ready,"inputTransport":"Karabiner send_user_command","firmwareVerified":connected,"layer":c.layer==0 ? 8:c.layer,"foreground":c.bundle,"inputReports":self.input.count,"taskCount":tasks.count,"taskStates":tasks.map{$0["state"] as? Int ?? 0},"terminalCount":terminals.compactMap{$0}.count,"terminalStates":terminals.map{$0?["state"] as? Int ?? 0},"terminalNames":terminals.map{$0?["name"] as? String ?? ""},"updatedAt":ISO8601DateFormatter().string(from:Date())]
+            var state:[String:Any] = ["pid":ProcessInfo.processInfo.processIdentifier,"accessibility":ax,"inputMonitoring":input,"inputReceiverReady":self.input.ready,"inputTransport":"Karabiner send_user_command","firmwareVerified":connected,"layer":c.layer==0 ? 8:c.layer,"foreground":c.bundle,"inputReports":self.input.count,"taskCount":taskCount,"taskIds":tasks.map{$0["id"] as? String ?? ""},"taskStates":tasks.map{$0["state"] as? Int ?? 0},"terminalCount":terminals.compactMap{$0}.count,"terminalStates":terminals.map{$0?["state"] as? Int ?? 0},"terminalNames":terminals.map{$0?["name"] as? String ?? ""},"updatedAt":ISO8601DateFormatter().string(from:Date())]
             state["controllerConnected"]=controller.connected;state["controllerEnabled"]=controller.enabled;state["controllerEffective"]=controller.effective;state["controllerName"]=controller.controllerName;state["controllerReports"]=controller.reports;state["profileError"]=profiles.loadError ?? ""
             if let d=try? JSONSerialization.data(withJSONObject:state,options:[.prettyPrinted,.sortedKeys]) {try? d.write(to:support.appendingPathComponent("runtime.json"),options:.atomic)}
             let request=support.appendingPathComponent("diagnostic-request")
@@ -220,9 +223,23 @@ final class BridgeDelegate:NSObject,NSApplicationDelegate {
         if id=="bridge.help" {showSettings(device:device);return}
         if id=="bridge.chooser" {openChooser(nil);return}
         guard id != "none" else{return}
+        let parts=id.split(separator:".")
+        if c.layer==1,parts.count==2,parts[0]=="button",let key=Int(parts[1]),let index=taskKeys.firstIndex(of:key) {
+            dispatchTask(index+1,c,time:time,maxAge:maxAge);return
+        }
         work.async {
             guard self.contexts.valid(c),ProcessInfo.processInfo.systemUptime-time<maxAge else{return}
             self.actions.performNamed(id,c)
+        }
+    }
+    func dispatchTask(_ slot:Int,_ c:Foreground,time:Double,maxAge:Double=0.5) {
+        let snapshot=actions.taskSnapshot()
+        guard slot>=1,slot<=snapshot.count else{actions.fail("该任务槽暂时没有任务");return}
+        let record=snapshot[slot-1]
+        work.async {
+            guard self.contexts.valid(c),ProcessInfo.processInfo.systemUptime-time<maxAge else{return}
+            // Open and acknowledge the displayed identity, even if recency changes.
+            self.actions.openTaskRecord(record,c)
         }
     }
     func rememberPanelApp() {
