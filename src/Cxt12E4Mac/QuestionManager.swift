@@ -77,6 +77,9 @@ final class QuestionManager: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private func build() {
         let window = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 820, height: 540), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Bridge · 忽略此提问"; window.isReleasedWhenClosed = false; window.delegate = self
+        // The app-switch observer closes this panel and releases controller pause.
+        // Auto-hiding first would conceal it from that observer.
+        window.hidesOnDeactivate = false
         window.minSize = NSSize(width: 700, height: 460); window.center()
         guard let content = window.contentView else { return }
         let hint = NSTextField(wrappingLabelWithString: "在 ChatGPT 点过“跳过”后，可在这里忽略对应提问。仅调整本机 Bridge 灯光，不会回答问题或继续任务；可随时恢复。")
