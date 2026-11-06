@@ -1300,6 +1300,7 @@ namespace Cxt1024Bridge
             Assert(TerminalWindowActivator.IsTerminalProcessName("WindowsTerminal") && TerminalWindowActivator.IsTerminalProcessName("wt"), "terminal focus accepts supported Windows Terminal process names");
             Assert(!TerminalWindowActivator.IsTerminalProcessName("notepad"), "terminal focus rejects a recycled HWND owned by another process");
             CodexTaskStateTests.Run();
+            CodexRolloutPathCacheTests.Run();
 
             var assigned = new ChatGptThreadSlot[6];
             for (int i = 0; i < assigned.Length; i++)

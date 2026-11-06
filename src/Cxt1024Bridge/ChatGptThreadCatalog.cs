@@ -191,10 +191,8 @@ namespace Cxt1024Bridge
         private const int SqliteRow = 100;
         private const int SqliteDone = 101;
         private const int SqliteOpenReadOnly = 0x00000001;
-        private static readonly object RolloutCacheGate = new object();
-        private static Dictionary<string, string> _rolloutCache;
-        private static string _rolloutCacheKey;
-        private static DateTime _rolloutCacheBuiltUtc;
+        private static readonly CodexRolloutPathCache RolloutCache = new CodexRolloutPathCache(
+            ScanRolloutPaths, File.Exists, delegate { return DateTime.UtcNow; });
 
         internal static List<ChatGptThreadSlot> ReadRecent(int limit)
         {
@@ -479,27 +477,7 @@ namespace Cxt1024Bridge
 
         private static string FindRolloutPath(string threadId)
         {
-            List<string> sessionsRoots = CodexSessionRoots();
-            if (sessionsRoots.Count == 0)
-                return string.Empty;
-            string cacheKey = string.Join("|", sessionsRoots.ToArray());
-            lock (RolloutCacheGate)
-            {
-                if (_rolloutCache == null ||
-                    !string.Equals(_rolloutCacheKey, cacheKey, StringComparison.OrdinalIgnoreCase) ||
-                    DateTime.UtcNow - _rolloutCacheBuiltUtc > TimeSpan.FromSeconds(30))
-                {
-                    RebuildRolloutCache(sessionsRoots, cacheKey);
-                }
-                string path;
-                if (_rolloutCache.TryGetValue(threadId, out path))
-                    return path;
-
-                // A newly created task can appear in SQLite before the periodic cache
-                // refresh. Refresh once immediately when an ID is missing.
-                RebuildRolloutCache(sessionsRoots, cacheKey);
-                return _rolloutCache.TryGetValue(threadId, out path) ? path : string.Empty;
-            }
+            return RolloutCache.Find(threadId, CodexSessionRoots());
         }
 
         private static List<string> CodexSessionRoots()
@@ -515,7 +493,7 @@ namespace Cxt1024Bridge
             return roots;
         }
 
-        private static void RebuildRolloutCache(IList<string> sessionsRoots, string cacheKey)
+        private static Dictionary<string, string> ScanRolloutPaths(IList<string> sessionsRoots)
         {
             var cache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var writeTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
@@ -541,9 +519,7 @@ namespace Cxt1024Bridge
                     }
                 }
             }
-            _rolloutCache = cache;
-            _rolloutCacheKey = cacheKey;
-            _rolloutCacheBuiltUtc = DateTime.UtcNow;
+            return cache;
         }
 
         private static string ReadUtf8Column(IntPtr statement, int column)
