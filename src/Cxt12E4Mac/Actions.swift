@@ -216,7 +216,16 @@ final class Actions {
     }
     func dock(_ slot:Int,_ c:Foreground) {
         guard context.valid(c) else{return}
-        let path=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/karabiner/dock-slots.txt")
+        let directory=FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/karabiner")
+        switch optionalDockTarget(slot,directory:directory) {
+        case .resolved(let target):
+            guard context.valid(c) else{return}
+            openApp(target);return
+        case .failed:
+            fail("应用编号读取失败，请检查数字快启配置");return
+        case .unavailable:break
+        }
+        let path=directory.appendingPathComponent("dock-slots.txt")
         if let data=try? String(contentsOf:path,encoding:.utf8),let line=data.split(separator:"\n").first(where:{$0.split(separator:" ").first==Substring(String(slot))}) {
             let name=line.split(separator:" ",maxSplits:1).dropFirst().joined(separator:" ")
             if !name.isEmpty {openApp(name);return}

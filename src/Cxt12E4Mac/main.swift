@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import IOKit.hid
 
-if CommandLine.arguments.contains("--self-test") {selfTest();actionsSelfTest();profileSelfTest();controllerInputSelfTest();controllerEngineSelfTest();controllerCoordinatorSelfTest();exit(0)}
+if CommandLine.arguments.contains("--self-test") {selfTest();actionsSelfTest();dockLauncherSelfTest();profileSelfTest();controllerInputSelfTest();controllerEngineSelfTest();controllerCoordinatorSelfTest();exit(0)}
 if CommandLine.arguments.contains("--dump-default-profiles") {
     let values=(0...7).map { layer -> [String:Any] in
         let mappings=LayerProfiles.devices.map { device -> [String:Any] in

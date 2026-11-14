@@ -20,7 +20,7 @@ class DockLauncherTests(unittest.TestCase):
         self.config = self.root / "dock-slots.txt"
         self.config.write_text("1 ChatGPT\n2 Ghostty\n3 Notion\n4 Finder\n")
         self.tiles = []
-        for name in ["Changed first", "B", "C", "D", "中文 App ' $() `text`", "F", "G", "H", "I", "J", "K"]:
+        for name in ["ChatGPT", "Ghostty", "Notion", "Dia", "中文 App ' $() `text`", "Antigravity", "Claude", "WorkBuddy", "Chrome", "Arc", "Muse"]:
             app = self.root / (name + ".app")
             app.mkdir()
             self.tiles.append({"tile-type": "file-tile", "tile-data": {
@@ -35,33 +35,55 @@ class DockLauncherTests(unittest.TestCase):
         for slot, name in enumerate(["ChatGPT", "Ghostty", "Notion", "Finder"], 1):
             self.assertEqual(launcher.resolve_slot(slot, self.config, unavailable)["target"], name)
 
-    def test_reorder_seen_on_next_resolution_and_no_fixed_slot_subtraction(self):
+    def test_finder_consumes_slot_four_even_though_absent_from_dock_preferences(self):
+        self.assertEqual([self.resolve(n)["name"] for n in range(1, 12)],
+                         ["ChatGPT", "Ghostty", "Notion", "Finder", "Dia", "中文 App ' $() `text`",
+                          "Antigravity", "Claude", "WorkBuddy", "Chrome", "Arc"])
+
+    def test_reorder_seen_on_next_resolution(self):
         before = self.resolve(5)
-        self.tiles[4], self.tiles[6] = self.tiles[6], self.tiles[4]
-        self.assertEqual(self.resolve(5)["name"], "G")
-        self.assertEqual(self.resolve(7)["target"], before["target"])
-        self.assertEqual(self.resolve(10)["name"], "J")
-        self.assertEqual(self.resolve(11)["name"], "K")
+        self.tiles[3], self.tiles[6] = self.tiles[6], self.tiles[3]
+        self.assertEqual(self.resolve(5)["name"], "Claude")
+        self.assertEqual(self.resolve(8)["target"], before["target"])
+        self.assertEqual(self.resolve(10)["name"], "Chrome")
+        self.assertEqual(self.resolve(11)["name"], "Arc")
+
+    def test_moving_or_removing_fixed_apps_in_dock_does_not_duplicate_or_shift_dynamic_apps(self):
+        before = [self.resolve(n)["name"] for n in range(1, 12)]
+        self.tiles.append(self.tiles.pop(0))
+        self.tiles.insert(7, self.tiles.pop(0))
+        self.assertEqual([self.resolve(n)["name"] for n in range(1, 12)], before)
+        self.tiles = [t for t in self.tiles if t["tile-data"]["file-label"] != "ChatGPT"]
+        self.assertEqual([self.resolve(n)["name"] for n in range(1, 12)], before)
+
+    def test_bundle_filename_matches_fixed_app_when_dock_label_differs(self):
+        self.tiles[0]["tile-data"]["file-label"] = "Codex display label"
+        self.assertEqual(self.resolve(5)["name"], "Dia")
+
+    def test_no_overrides_preserves_plain_dock_order(self):
+        self.config.unlink()
+        self.assertEqual(self.resolve(4)["name"], "Dia")
+        self.assertEqual(self.resolve(5)["name"], "中文 App ' $() `text`")
 
     def test_file_url_spaces_unicode_and_shell_characters_are_literal(self):
-        target = self.resolve(5)
+        target = self.resolve(6)
         self.assertEqual(target["target"], str(self.root / "中文 App ' $() `text`.app"))
         with patch.object(launcher.subprocess, "run") as run:
             launcher.launch(target)
         self.assertEqual(run.call_args.args[0], ["/usr/bin/open", "-a", target["target"]])
 
     def test_missing_and_spacer_slots_do_not_launch_neighbor(self):
-        self.tiles[4] = {"tile-type": "spacer-tile"}
+        self.tiles[3] = {"tile-type": "spacer-tile"}
         with self.assertRaisesRegex(launcher.LaunchError, "不是应用"):
             self.resolve(5)
-        self.tiles = self.tiles[:5]
-        with self.assertRaisesRegex(launcher.LaunchError, "没有第 6"):
+        self.tiles = self.tiles[:4]
+        with self.assertRaisesRegex(launcher.LaunchError, "没有足够"):
             self.resolve(6)
 
     def test_stale_and_nonlocal_urls_fail_without_old_app_fallback(self):
         for url in ["https://example.com/App.app", "file://remotehost/App.app", "file:///missing.app"]:
             with self.subTest(url=url):
-                self.tiles[4]["tile-data"]["file-data"]["_CFURLString"] = url
+                self.tiles[3]["tile-data"]["file-data"]["_CFURLString"] = url
                 with self.assertRaises(launcher.LaunchError):
                     self.resolve(5)
 
@@ -70,7 +92,7 @@ class DockLauncherTests(unittest.TestCase):
         self.assertEqual(self.resolve(1)["name"], "ChatGPT")
         self.assertEqual(self.resolve(4)["name"], "Finder")
         self.assertEqual(self.resolve(5)["name"], "Custom App")
-        self.assertEqual(self.resolve(6)["name"], "F")
+        self.assertEqual(self.resolve(6)["name"], "Dia")
 
     def test_reads_fresh_export_and_ignores_recent_apps(self):
         data = plistlib.dumps({"persistent-apps": self.tiles, "recent-apps": [{"wrong": True}]})

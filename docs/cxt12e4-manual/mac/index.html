@@ -271,8 +271,8 @@
       </div>
       <aside class="quick-card keyboard-only">
         <h2>启动 Mac 应用 · 按住键12，再按</h2>
-        <div class="chord"><span><b>1</b> → ChatGPT（固定）</span><span><b>2</b> → Ghostty（固定）</span><span><b>3</b> → Notion（固定）</span><span><b>4</b> → Finder（固定）</span><span><b>5</b> → Dock 第 5 位</span><span><b>6</b> → Dock 第 6 位</span><span><b>7</b> → Dock 第 7 位</span><span><b>8</b> → Dock 第 8 位</span><span><b>9</b> → Dock 第 9 位</span><span><b>10</b> → Dock 第 10 位</span><span><b>11</b> → Dock 第 11 位</span></div>
-        <p class="quick-note">上表为 2026-11-14 更新的个人配置示例：本机 <code>~/.config/karabiner/dock-slots.txt</code> 只固定 1–4，5–11 在每次启动时读取 Dock 对应常驻应用位；松开两键后执行。拖动 Dock 后，下一次启动就使用新位置。编号不含 Finder 自身和右侧最近使用区域；空白占位保留序号且不启动。已有其他固定项的用户仍以自己的清单为准。普通键盘单按 Win 仍打开 Apps 应用列表。键12单独短按保留当前层功能；长按650ms进入 tmux 灯位4。没有配置的应用位会提示。</p>
+        <div class="chord"><span><b>1</b> → ChatGPT（固定）</span><span><b>2</b> → Ghostty（固定）</span><span><b>3</b> → Notion（固定）</span><span><b>4</b> → Finder（固定）</span><span><b>5</b> → 剩余应用第 1 位</span><span><b>6</b> → 剩余应用第 2 位</span><span><b>7</b> → 剩余应用第 3 位</span><span><b>8</b> → 剩余应用第 4 位</span><span><b>9</b> → 剩余应用第 5 位</span><span><b>10</b> → 剩余应用第 6 位</span><span><b>11</b> → 剩余应用第 7 位</span></div>
+        <p class="quick-note">上表为 2026-11-14 更新的个人配置示例：本机 <code>~/.config/karabiner/dock-slots.txt</code> 固定 1–4（包含 Finder），再从 Dock 排除这些已固定应用，按剩余顺序填入 5–11；当前 5 是 Dia。松开两键后执行，拖动 Dock 后下一次启动就使用新顺序。右侧最近使用区域不计入；空白占位保留序号且不启动。需要使用本次更新的 Bridge 和可选数字启动脚本；未安装脚本的用户仍按原有清单及 Dock 位置回退。普通键盘单按 Win 仍打开 Apps 应用列表。键12单独短按保留当前层功能；长按650ms进入 tmux 灯位4。没有配置的应用位会提示。</p>
       </aside>
     </header>
 

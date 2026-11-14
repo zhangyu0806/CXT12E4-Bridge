@@ -82,7 +82,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install\windows-home\Verif
 | Windows | `%LOCALAPPDATA%\Cxt1024Bridge\profiles.windows.json` | 同目录的 `bridge.log` |
 | macOS | `~/Library/Application Support/CXT12E4Bridge/profiles.json` | 同目录的 `bridge.log` |
 
-优先用设置界面修改。升级会保留已有覆盖；“恢复本层默认”会重置整个当前设备、当前层。两端配置文件不可直接互换。Mac 应用数字槽可从 `~/.config/karabiner/dock-slots.txt` 读取，未配置的槽位回退到本机 Dock 顺序。当前个人示例仅固定 1–4，5–10 每次按键读取 Dock 第 5–10 个常驻应用位；Finder 和右侧最近使用区域不计入，普通键盘 0 对应第 10 位。安装器不覆盖个人清单。
+优先用设置界面修改。升级会保留已有覆盖；“恢复本层默认”会重置整个当前设备、当前层。两端配置文件不可直接互换。Mac 应用数字槽可从 `~/.config/karabiner/dock-slots.txt` 读取，未配置的槽位回退到本机 Dock 顺序。当前个人示例固定 1–4（包含 Finder），再从 Dock 中排除这四个应用，按剩余常驻应用顺序填入 5–10；因此 5 从 Dia 开始，普通键盘 0 对应第 10 个启动位。更新后的 Bridge 会查询可选启动脚本，保持相同编号；未安装脚本时保留原有回退规则。安装器不覆盖个人清单。
 
 截图、剪贴板等动作依赖相应第三方工具及其快捷键：例如 PixPin，Windows 的 CopyQ / Total Commander，以及 Mac 的 Raycast / Cursor。未使用这些工具时，可在分层设置中换成适合自己的动作。完整按键和旋钮表见在线手册或 [Windows 详细说明](README-CXT12E4.md)。
 

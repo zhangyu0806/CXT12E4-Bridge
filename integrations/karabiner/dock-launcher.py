@@ -16,16 +16,36 @@ class LaunchError(Exception):
     pass
 
 
-def fixed_app(slot, config):
+def fixed_apps(config):
     try:
         text = config.read_text(encoding="utf-8")
     except FileNotFoundError:
-        return None
+        return {}
+    apps = {}
     for line in text.splitlines():
         parts = line.strip().split(maxsplit=1)
-        if len(parts) == 2 and parts[0] == str(slot):
-            return parts[1]
-    return None
+        if len(parts) == 2 and parts[0] in {str(n) for n in range(1, 12)}:
+            apps.setdefault(int(parts[0]), parts[1])
+    return apps
+
+
+def app_name(value):
+    """Match a fixed app against either the Dock label or its bundle filename."""
+    name = Path(value.rstrip("/")).name
+    return (name[:-4] if name.lower().endswith(".app") else name).casefold()
+
+
+def remaining_dock_apps(apps, fixed):
+    names = {app_name(value) for value in fixed.values()}
+    remaining = []
+    for tile in apps:
+        data = tile.get("tile-data", {}) if isinstance(tile, dict) else {}
+        label = data.get("file-label", "")
+        path = unquote(urlsplit(data.get("file-data", {}).get("_CFURLString", "")).path)
+        if any(value and app_name(value) in names for value in [label, path]):
+            continue
+        remaining.append(tile)
+    return remaining
 
 
 def read_dock():
@@ -42,14 +62,18 @@ def read_dock():
 def resolve_slot(slot, config=CONFIG, dock_reader=read_dock):
     if not 1 <= slot <= 11:
         raise LaunchError("应用位必须为 1–11；普通键盘的 0 对应第 10 位")
-    app = fixed_app(slot, config)
+    fixed = fixed_apps(config)
+    app = fixed.get(slot)
     if app:
         return {"slot": slot, "source": "fixed", "name": app, "target": app}
-    apps = dock_reader()
-    if slot > len(apps):
-        raise LaunchError("Dock 没有第 %d 个常驻应用位" % slot)
-    # Keep the same indices as Bridge Actions.dock. Never shift after an empty tile.
-    tile = apps[slot - 1]
+    # Fixed apps occupy their own slots even when absent from persistent-apps
+    # (notably Finder). Fill free slots from the remaining Dock apps in order.
+    apps = remaining_dock_apps(dock_reader(), fixed)
+    index = sum(number not in fixed for number in range(1, slot + 1)) - 1
+    if index >= len(apps):
+        raise LaunchError("Dock 没有足够的剩余应用填入第 %d 位" % slot)
+    # Empty tiles retain a place; an invalid target must not launch its neighbor.
+    tile = apps[index]
     data = tile.get("tile-data", {}) if isinstance(tile, dict) else {}
     raw_url = data.get("file-data", {}).get("_CFURLString", "")
     url = urlsplit(raw_url)
@@ -57,9 +81,9 @@ def resolve_slot(slot, config=CONFIG, dock_reader=read_dock):
     if (url.scheme != "file" or url.netloc not in ("", "localhost")
             or url.query or url.fragment or not path.is_absolute()
             or path.suffix.lower() != ".app"):
-        raise LaunchError("Dock 第 %d 位不是应用（可能是空白占位）" % slot)
+        raise LaunchError("启动位 %d 对应的 Dock 项不是应用（可能是空白占位）" % slot)
     if not path.is_dir():
-        raise LaunchError("Dock 第 %d 位应用已移走，请重新固定到 Dock" % slot)
+        raise LaunchError("启动位 %d 对应的应用已移走，请重新固定到 Dock" % slot)
     return {"slot": slot, "source": "dock", "name": data.get("file-label") or path.stem,
             "target": str(path)}
 

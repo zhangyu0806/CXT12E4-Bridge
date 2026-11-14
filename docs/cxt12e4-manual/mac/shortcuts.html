@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="configuration-revision" content="20261114-dock-launcher">
+<meta name="configuration-revision" content="20261114-fixed-prefix">
 <meta name="color-scheme" content="light">
 <title>我的快捷键总表 · CXT12E4 Mac 使用手册</title>
 <style>
@@ -75,18 +75,18 @@
 <tr data-shortcut><th scope="row"><kbd>Shift</kbd> + <kbd>Caps 短按</kbd></th><td>切换大小写锁定</td><td>T90 在松开时触发；只点 Caps 不切换大小写。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Fn / Globe 单按</kbd></th><td>切换输入法</td><td>Fn + 数字则用于应用快启。</td></tr>
 </tbody></table></section>
-<section class="section" id="launch"><header class="section-head"><h2>数字快启</h2><p>Win + 数字、Caps + 数字、Fn / Globe + 数字共用同一规则：1–4 固定，5–0 随 Dock 顺序变化；启动或激活应用。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
+<section class="section" id="launch"><header class="section-head"><h2>数字快启</h2><p>Win + 数字、Caps + 数字、Fn / Globe + 数字共用同一规则：1–4 固定（包含 Finder），5–0 按 Dock 中剩余应用的顺序排列；启动或激活应用。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>1</kbd></th><td>ChatGPT</td><td>固定数字槽 1；拖动 Dock 不改变此项。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>2</kbd></th><td>Ghostty</td><td>固定数字槽 2；拖动 Dock 不改变此项。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>3</kbd></th><td>Notion</td><td>固定数字槽 3；拖动 Dock 不改变此项。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>4</kbd></th><td>Finder</td><td>打开 Finder，并把窗口带到鼠标所在屏幕。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>5</kbd></th><td>Dock 第 5 个常驻应用位</td><td>2026-11-14 核对为 ego lite；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>6</kbd></th><td>Dock 第 6 个常驻应用位</td><td>2026-11-14 核对为 Antigravity；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>7</kbd></th><td>Dock 第 7 个常驻应用位</td><td>2026-11-14 核对为 Claude 桌面版；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>8</kbd></th><td>Dock 第 8 个常驻应用位</td><td>2026-11-14 核对为 WorkBuddy；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>9</kbd></th><td>Dock 第 9 个常驻应用位</td><td>2026-11-14 核对为 Google Chrome；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>0</kbd></th><td>Dock 第 10 个常驻应用位</td><td>2026-11-14 核对为 Arc；以后按 Dock 当前顺序，拖动后下一次按键生效。</td></tr>
-</tbody></table><div class="more"><p><b>三键 + 数字</b> 优先执行移屏。12E4 的“按住键 12，再按其他数字键”也使用这套固定项与 Dock 回退规则；键 10 / 普通键盘 0 对应第 10 位，12E4 键 11 对应第 11 位。编号从 Finder 后面的常驻应用区开始，Finder 自身、右侧最近使用区、未固定的临时应用、文件夹和废纸篓不计入；空白占位保留序号且不启动，也不向后错位。1–4 固定为 ChatGPT、Ghostty、Notion、Finder，其余使用原编号对应的 Dock 位置。<b>单按 Win</b> 仍打开 Apps 应用列表。</p></div></section>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>5</kbd></th><td>剩余 Dock 应用第 1 位 · 当前 Dia</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>6</kbd></th><td>剩余 Dock 应用第 2 位 · 当前 ego lite</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>7</kbd></th><td>剩余 Dock 应用第 3 位 · 当前 Antigravity</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>8</kbd></th><td>剩余 Dock 应用第 4 位 · 当前 Claude 桌面版</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>9</kbd></th><td>剩余 Dock 应用第 5 位 · 当前 WorkBuddy</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+<tr data-shortcut><th scope="row"><kbd>Win / Caps / Fn</kbd> + <kbd>0</kbd></th><td>剩余 Dock 应用第 6 位 · 当前 Google Chrome</td><td>前四项固定占位；从 Dock 中排除已固定应用后按顺序编号。拖动后下一次按键生效。</td></tr>
+</tbody></table><div class="more"><p><b>三键 + 数字</b> 优先执行移屏。12E4 的“按住键 12，再按其他数字键”也使用这套固定项与 Dock 回退规则；键 10 / 普通键盘 0 对应第 10 位，12E4 键 11 对应第 11 位。1–4 固定为 ChatGPT、Ghostty、Notion、Finder。Finder 虽不在系统的普通 Dock 应用列表里，仍占第 4 个启动位；其余应用从 Dock 中排除这四项后，从 5 开始按顺序编号，因此当前 5 是 Dia。右侧最近使用区、未固定的临时应用、文件夹和废纸篓不计入；空白占位保留序号且不启动。Finder 原生图标固定在 Dock 最左侧，Win + 4 的固定编号不依赖图标位置。<b>单按 Win</b> 仍打开 Apps 应用列表。</p></div></section>
 <section class="section" id="edit"><header class="section-head"><h2>左 Alt：编辑与鼠标</h2><p>这组左 Alt 习惯在终端也保留。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>H / J / K / L</kbd></th><td>光标左 / 下 / 上 / 右</td><td>所有应用；是普通方向键，不切 tmux pane。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>左 Alt</kbd> + <kbd>U / I</kbd></th><td>向左删除 / 向右删除</td><td>Backspace / Delete。</td></tr>
@@ -177,7 +177,7 @@
 <tr data-shortcut><th scope="row"><kbd>Xbox RT + L3</kbd></th><td>当前层专用动作</td><td>按住 RT，再按左摇杆：Codex 聚焦输入框、tmux 缩放 pane、Notion 快速搜索；L3 单按仍打开设置。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Xbox Menu ≡ 短按 / 长按</kbd></th><td>任务与会话面板 / 暂停或恢复手柄</td><td>长按约 0.85 秒；完整映射见手柄页。</td></tr>
 </tbody></table><div class="more"><p><a href="index.html?device=keyboard&amp;layer=1">12E4 完整八层按键与旋钮图 →</a>　<a href="index.html?device=xbox&amp;layer=1">Xbox 完整八层按键图 →</a></p><p>短按、长按、键 12 组合与旋钮操作互斥；重叠输入取消后，松开全部键再操作。切任务时会唤回目标应用，已有跨屏窗口由窗口管理配置维护。</p></div></section></div><p id="empty" hidden>没有匹配的快捷键。试试动作名称，或切回“全部”。</p>
-<footer><p>数字快启更新：2026-11-14，前四项保留固定应用，5–0 每次读取 Dock 第 5–10 个常驻应用位；Caps、Fn 和 12E4 同步采用此规则。移屏顺序更新：2026-11-06，Win + Shift + 左 / 右改为按显示器编号循环到上一屏 / 下一屏；上 / 下继续按真实方向移屏。跨屏稳定性更新：2026-10-28，三键 + A 的上下双屏目标统一适配底部可见 Dock 边界，修复 ChatGPT / Codex、Obsidian 等应用跨屏后回滚；固定布局与跨屏维护使用相同边界。全屏说明更新：2026-10-22，补充 F11 在共享空间下对其他屏幕的影响，以及 Win + ↑ 单屏最大化的区别。布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。此前 2026-10-21 的 5–10 固定清单已改为跟随 Dock。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
+<footer><p>数字快启更新：2026-11-14，修正 Finder 固定占位：前四项保持固定，其余从 Dock 排除已固定应用后依次填入 5–0；当前 5 为 Dia。Caps、Fn 和更新后的 12E4 Bridge 使用同一解析器。移屏顺序更新：2026-11-06，Win + Shift + 左 / 右改为按显示器编号循环到上一屏 / 下一屏；上 / 下继续按真实方向移屏。跨屏稳定性更新：2026-10-28，三键 + A 的上下双屏目标统一适配底部可见 Dock 边界，修复 ChatGPT / Codex、Obsidian 等应用跨屏后回滚；固定布局与跨屏维护使用相同边界。全屏说明更新：2026-10-22，补充 F11 在共享空间下对其他屏幕的影响，以及 Win + ↑ 单屏最大化的区别。布局稳定性更新：2026-10-22，修复原生全屏窗口准备、松键计时、有限唤回重试与全屏撤销恢复，补充应用未启动和无窗口状态的说明。固定布局更新：2026-10-22，新增 S：左上 Codex、左下 Claude 桌面版、右侧 Notion；原 S 的单窗口跨两屏操作保留在布局菜单。此前 2026-10-21 的 5–10 固定清单已改为跟随 Dock。其余快捷键沿用 2026-10-20 核对结果。依据本机启用的 Karabiner、Hammerspoon、Ghostty、tmux 和 12E4 Bridge 配置整理；应用名称与数字快启以这次核对为准。</p><p>窗口的“铺满”指桌面窗口最大化。显示器断开、应用窗口不可调整或权限不足时可能无法执行；右屏与四套固定布局按显示器身份定位。实体按键是否顺手仍以实际使用为准。</p></footer>
 </main><script src="../manual-navigation.js?v=20261022-platform-sections"></script>
 <script>
 const input=document.getElementById('searchInput'), sections=[...document.querySelectorAll('.section')], rows=[...document.querySelectorAll('tbody tr[data-shortcut]')], filters=[...document.querySelectorAll('[data-filter]')];
