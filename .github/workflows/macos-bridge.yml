@@ -29,6 +29,7 @@ jobs:
           python3 -m unittest discover -s src/Cxt12E4Mac -p 'test_*.py'
           python3 -m unittest discover -s integrations/tmux/macos -p 'test_*.py'
           python3 tests/test_integration_portability.py
+          python3 -m unittest discover -s integrations/karabiner -p 'test_*.py'
       - name: Check manual navigation and keyboard tables
         run: |
           node tests/manual-navigation.test.js
