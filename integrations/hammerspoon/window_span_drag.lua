@@ -19,6 +19,11 @@ function M.start(win, base, target, done, presented)
     end
 
     local function post(kind, point)
+        -- Posting a move alone can leave the physical cursor behind, causing
+        -- repeated hover attempts. Position it once before
+        -- queuing the tagged hover; down still waits for acknowledgement and
+        -- verifies the actual pointer, focus and window presentation.
+        if kind == types.mouseMoved then hs.mouse.absolutePosition(point) end
         local item = event.newMouseEvent(kind, point, {})
             :setProperty(event.properties.eventSourceUserData, dragEventTag)
         item:timestamp(hs.timer.absoluteTime())
@@ -52,7 +57,7 @@ function M.start(win, base, target, done, presented)
 
     function controller.isStationaryFeedback(item)
         local last = state.lastPost
-        if state.finished or not state.down or not last or item:getType() ~= types.mouseMoved then return false end
+        if state.finished or not last or item:getType() ~= types.mouseMoved then return false end
         local age = hs.timer.secondsSinceEpoch() - last.time
         if age < 0 or age > .15 then return false end
         local point = item:location()
@@ -182,7 +187,7 @@ function M.start(win, base, target, done, presented)
         -- not turn an already completed resize into a failure and AX rollback.
         -- Escape still cancels through its independent hotkey callback.
         if state.phase == "verifying" then
-            if now - state.since < .05 then return end
+            if now - state.since < .02 then return end
             local f = win:frame()
             local ok = math.abs(f.x - target.x) <= 4 and math.abs(f.y - target.y) <= 4
                 and math.abs(f.w - target.w) <= 32 and math.abs(f.h - target.h) <= 32
@@ -245,7 +250,7 @@ function M.start(win, base, target, done, presented)
         elseif state.phase == "hovering" then
             if not state.positionAcknowledgedAt then return end
             local quietSince = math.max(state.positionAcknowledgedAt, state.lastPointerMotionAt or 0)
-            if now-quietSince < .1 then return end
+            if now-quietSince < .06 then return end
             -- Recheck everything after the asynchronous hover. Posting down at
             -- a different pointer position would cause a second, unguarded warp.
             if next(hs.eventtap.checkMouseButtons()) then return finish(false, "user-interrupted") end
@@ -306,7 +311,7 @@ function M.start(win, base, target, done, presented)
     state.escape = hs.hotkey.bind({}, "escape", function()
         finish(false, "跨屏操作已取消")
     end)
-    state.timer = hs.timer.doEvery(.02, function()
+    state.timer = hs.timer.doEvery(.01, function()
         local ok, err = pcall(step)
         if not ok then
             hs.printf("[window_span_drag] %s", tostring(err))

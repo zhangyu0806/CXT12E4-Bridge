@@ -1464,8 +1464,21 @@ local function installMouseGuard()
             invalidateNavigation("real mouse interaction")
             local win = hs.window.focusedWindow()
             local id, pid = identity(win)
-            if win and maintainedAction(win) and (not M._userGesture or M._userGesture.id ~= id) then
-                M._userGesture = {win=win,id=id,pid=pid,frame=rect(win:frame())}
+            if win and maintainedAction(win) and (down[kind] or not M._userGesture
+                or M._userGesture.id ~= id or M._userGesture.pid ~= pid) then
+                local point, frame = event:location(), rect(win:frame())
+                local clicks = properties.mouseEventClickState and event:getProperty(properties.mouseEventClickState) or 0
+                M._userGesture = {win=win,id=id,pid=pid,frame=frame,
+                    start={x=point.x,y=point.y}, dragged=dragged[kind] == true,
+                    titleDoubleClick=clicks >= 2 and point.x >= frame.x and point.x <= frame.x+frame.w
+                        and point.y >= frame.y and point.y <= frame.y+28}
+            end
+            local gesture = M._userGesture
+            if gesture and dragged[kind] then
+                local point = event:location()
+                if math.abs(point.x-gesture.start.x) > 3 or math.abs(point.y-gesture.start.y) > 3 then
+                    gesture.dragged = true
+                end
             end
         elseif up[kind] and M._userGesture then
             local gesture = M._userGesture
@@ -1475,7 +1488,12 @@ local function installMouseGuard()
                 if M._userGesture ~= gesture then return end
                 M._userGesture = nil
                 local id, pid = identity(gesture.win)
-                if id == gesture.id and pid == gesture.pid and not fits(gesture.win:frame(), gesture.frame) then
+                -- A tab click can make Electron/AppKit clamp a spanning frame.
+                -- Frame changes alone do not prove a manual window adjustment:
+                -- require a real drag (ignoring click jitter) or title-bar zoom.
+                if id == gesture.id and pid == gesture.pid
+                    and (gesture.dragged or gesture.titleDoubleClick)
+                    and not fits(gesture.win:frame(), gesture.frame) then
                     M.endFullSpanMode(gesture.win)
                 end
             end)

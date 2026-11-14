@@ -274,10 +274,18 @@ function M.enter(win, ready, failed)
             fail("菜单栏未能隐藏，请重试")
         end
     end
-    member.timer = hs.timer.doEvery(.15, function()
+    local function check()
+        member.timer = nil
         local checked, checkError = pcall(verify)
         if not checked then fail(tostring(checkError)) end
-    end)
+        if members[memberKey] == member and member.pending then
+            member.timer = hs.timer.doAfter(.15, check)
+        end
+    end
+    -- Already-hidden menu bars need no fixed 150 ms delay. Stay asynchronous
+    -- so callers finish registering their operation before ready() can run;
+    -- a real transition still polls until its measured inset reaches zero.
+    member.timer = hs.timer.doAfter(0, check)
     startWatchdog()
     return true
 end
