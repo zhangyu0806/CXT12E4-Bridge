@@ -52,7 +52,9 @@
 <tr data-shortcut data-search="长按 松键 窗口未就绪 Caps Shift Win 重复"><th scope="row">按住三键或连续按布局键</th><td>松开组合键后再准备窗口位置；松键等待不占窗口呈现准备时间。唤回同一窗口失败时最多重试 3 次；重复按同一布局不会重启正在执行的请求。</td><td>按一次后松开即可。连续持键超过 15 秒会提示松键并取消本次布局；应用启动阶段仍使用自己的 8 秒等待期限。</td></tr>
 <tr data-shortcut data-search="未安装 显示器断开 权限 对话框 多窗口 失败 超时"><th scope="row">缺少应用、显示器，或窗口无法调整</th><td>未安装、缺少指定屏幕、对话框阻塞或无法确定目标窗口时停止。还没调整窗口就失败时保留原位；调整中失败则尝试恢复已经改动的窗口。</td><td>先安装应用、连接指定屏幕、开启 Hammerspoon 辅助功能、处理对话框；多个候选窗口无法区分时先点选目标。实际鼠标点击或拖动会停止布局并保留当前位置。</td></tr>
 </tbody></table><div class="more"><p>本次修复已完成 155 项隔离回归，维护者的 S / C / X / 右屏 Z 程序触发验证均成功；这不代替实体键盘的实际验收。</p><p><a href="https://github.com/zhangyu0806/CXT12E4-Bridge/tree/main/integrations/hammerspoon">Hammerspoon 配置源码、安装说明与测试 →</a>　这是可选配置，需填写自己的显示器信息；Bridge 安装器不会自动覆盖现有 Hammerspoon 或 Karabiner 配置。</p></div></section>
-<section class="section" id="system"><header class="section-head"><h2>Windows 风格操作</h2><p>这里的 Win、左 Alt 都是 T90 上的实体键。</p></header><table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
+<section class="section" id="system"><header class="section-head"><h2>Windows 风格操作</h2><p>这里的 Win、左 Alt 都是 T90 上的实体键。</p></header>
+<div class="more" id="t90-connection"><p><strong>T90 有线模式</strong>。把有线键盘 <code>258a:017c</code> 和 2.4G 接收器 <code>258a:0150</code> 并列加入已有 T90 规则的设备条件，切到有线也可以沿用这组快捷键。<a href="https://github.com/zhangyu0806/CXT12E4-Bridge/blob/main/integrations/karabiner/README.md#t90-usb">查看 Karabiner 设备条件示例 →</a></p></div>
+<table class="shortcut-table"><thead><tr><th scope="col">按键</th><th scope="col">作用</th><th scope="col">使用范围 / 提醒</th></tr></thead><tbody>
 <tr data-shortcut><th scope="row"><kbd>Win 单按</kbd></th><td>打开 Apps 应用列表</td><td>松开后触发。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>D</kbd></th><td>显示桌面 / 收回桌面</td><td>当前桌面。</td></tr>
 <tr data-shortcut><th scope="row"><kbd>Win</kbd> + <kbd>E</kbd></th><td>打开或唤回 Finder</td><td>Finder 窗口带到鼠标所在屏幕。</td></tr>

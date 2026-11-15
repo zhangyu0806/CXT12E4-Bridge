@@ -32,3 +32,19 @@ python3 -m unittest discover -s integrations/karabiner -p 'test_*.py'
 ```
 
 程序读取和启动验证不等于实体键盘验收；在本机确认 Win + 1–4、Win + 5 / 0，以及 Dock 重排后的下一次按键。
+
+## T90 USB
+
+图阁 T90 的 2.4G 接收器是 `258a:0150`，有线键盘是 `258a:017c`。给已有的 T90 专用规则增加第二个设备条件项，可在有线模式沿用 Alt+Tab、Caps 和编辑快捷键。在现有 `device_if` 的 `identifiers` 数组中并列这两个标识，保留同一规则中的修饰键和变量条件。
+
+```json
+{
+  "type": "device_if",
+  "identifiers": [
+    {"vendor_id": 9610, "product_id": 336, "is_keyboard": true},
+    {"vendor_id": 9610, "product_id": 380, "is_keyboard": true}
+  ]
+}
+```
+
+这是已有 T90 配置的可选示例。用支持数据传输的线连接键盘，先确认 Karabiner 识别到 `258a:017c`，再用实体左 Alt + Tab 验证快捷键。
